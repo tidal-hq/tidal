@@ -9,5 +9,10 @@
 	},
 	"overwrites": {
 		"requireAnnotations": true
-	}
+	},
+	"client": [
+		"ClientPlayNetworkHandlerMixin",
+		"PlayerListHudAccessor",
+		"PlayerListHudMixin"
+	]
 }

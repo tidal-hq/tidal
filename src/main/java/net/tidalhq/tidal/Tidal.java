@@ -10,8 +10,10 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.state.ServerState;
+import net.tidalhq.tidal.state.TablistState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,15 @@ public class Tidal implements ClientModInitializer {
 
 				return 1;
 			}
+			));
+		});
+
+
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+			dispatcher.register(ClientCommandManager.literal("loc").executes( context -> {
+						context.getSource().sendFeedback(Text.literal(TablistState.getInstance().getCurrentLocation().name()));
+						return 1;
+					}
 			));
 		});
 	}
