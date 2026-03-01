@@ -7,9 +7,11 @@ import net.fabricmc.api.Environment;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
 import net.tidalhq.tidal.gui.MainScreen;
+import net.tidalhq.tidal.state.ServerState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,18 +23,48 @@ public class Tidal implements ClientModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	private static final MinecraftClient mc = MinecraftClient.getInstance();
 
+	private static ServerState serverState;
+
 	@Override
 	public void onInitializeClient() {
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(ClientCommandManager.literal(MOD_ID)
-				.executes(context -> {
+		serverState = ServerState.getInstance();
 
-							// Escape from command context and send an event to the client
-							mc.send(() -> {
-								mc.setScreen(new MainScreen());
-							});
+		registerCommands();
+		registerConnectionEvents();
+		registerTickEvents();
+	}
 
-							return 1;
-						}
-				)));
+	private void registerConnectionEvents() {
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			serverState.update();
+
+		});
+
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			serverState.reset();
+		});
+	}
+
+	private void registerCommands() {
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+			dispatcher.register(ClientCommandManager.literal(MOD_ID).executes( context -> {
+				mc.send(() -> {
+					mc.setScreen(new MainScreen());
+				});
+
+				return 1;
+			}
+			));
+		});
+	}
+
+	private void registerTickEvents() {
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (client.world != null && client.player != null) {
+				if (client.player.age % 20 == 0) {
+					serverState.update();
+				}
+			}
+		});
 	}
 }
