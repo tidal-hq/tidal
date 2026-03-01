@@ -10,15 +10,20 @@ import net.tidalhq.tidal.gui.widgets.Sidebar;
 public class MainScreen extends Screen {
     private static final float PANEL_WIDTH_RATIO = 0.86f;
     private static final float PANEL_HEIGHT_RATIO = 0.86f;
+    private static final float SIDEBAR_WIDTH_RATIO = 0.15f;
+    private static final float CATEGORY_HEIGHT_RATIO = 0.035f;
+    private static final float PADDING_RATIO = 0.01f;
+
     private static final int PANEL_BACKGROUND_COLOR = 0xFF2D2D2D;
-    private static final int SIDEBAR_WIDTH = 120;
-    private static final int CATEGORY_HEIGHT = 30;
-    private static final int PADDING = 10;
 
     private int panelLeft;
     private int panelTop;
     private int panelRight;
     private int panelBottom;
+
+    private int sidebarWidth;
+    private int categoryHeight;
+    private int padding;
 
     private Sidebar sidebar;
 
@@ -36,7 +41,15 @@ public class MainScreen extends Screen {
         this.panelRight = this.panelLeft + panelWidth;
         this.panelBottom = this.panelTop + panelHeight;
 
-        this.sidebar = new Sidebar(this, SIDEBAR_WIDTH, CATEGORY_HEIGHT, PADDING);
+        this.sidebarWidth = (int)(panelWidth * SIDEBAR_WIDTH_RATIO);
+        this.categoryHeight = (int)(this.height * CATEGORY_HEIGHT_RATIO);
+        this.padding = (int)(Math.min(this.width, this.height) * PADDING_RATIO);
+
+        this.sidebarWidth = Math.max(this.sidebarWidth, 80);
+        this.categoryHeight = Math.max(this.categoryHeight, 20);
+        this.padding = Math.max(this.padding, 4);
+
+        this.sidebar = new Sidebar(this, sidebarWidth, categoryHeight, padding);
         this.sidebar.init(panelLeft, panelTop, panelRight, panelBottom);
 
         if (Category.values().length > 0) {
@@ -46,12 +59,10 @@ public class MainScreen extends Screen {
 
     @Override
     public void render(DrawContext dc, int mX, int mY, float delta) {
-        // Draw main panel background
         dc.fill(panelLeft, panelTop,
                 panelRight, panelBottom,
                 PANEL_BACKGROUND_COLOR);
 
-        // Render sidebar
         if (sidebar != null) {
             sidebar.render(dc, mX, mY, delta);
         }

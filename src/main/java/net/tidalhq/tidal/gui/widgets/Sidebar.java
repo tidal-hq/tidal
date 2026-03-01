@@ -15,6 +15,10 @@ public class Sidebar {
     private static final int BUTTON_NORMAL_COLOR = 0xFF353535;
     private static final int TEXT_COLOR = 0xFFFFFFFF;
 
+    // Scale text size with screen if needed
+    private static final float MIN_TEXT_SCALE = 0.8f;
+    private static final float MAX_TEXT_SCALE = 1.2f;
+
     private final int sidebarWidth;
     private final int categoryHeight;
     private final int padding;
@@ -26,6 +30,7 @@ public class Sidebar {
     private final MainScreen mainScreen;
 
     private final List<CategoryButton> categoryButtons;
+    private float textScale = 1.0f;
 
     private Category category;
 
@@ -41,6 +46,17 @@ public class Sidebar {
             Category category = categories[i];
             categoryButtons.add(new CategoryButton(category, i));
         }
+
+        calculateTextScale();
+    }
+
+    private void calculateTextScale() {
+        int screenWidth = mainScreen.width;
+        int screenHeight = mainScreen.height;
+        int referenceSize = 1920;
+
+        float scale = (float) screenWidth / referenceSize;
+        this.textScale = Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, scale));
     }
 
     public void init(int panelLeft, int panelTop, int panelRight, int panelBottom) {
@@ -50,14 +66,21 @@ public class Sidebar {
 
         int y = sidebarY;
 
+        int buttonWidth = sidebarWidth;
+        int buttonHeight = categoryHeight;
+
         for (CategoryButton button : categoryButtons) {
             button.setBounds(
                     sidebarX,
                     y,
-                    sidebarWidth,
-                    categoryHeight
+                    buttonWidth,
+                    buttonHeight
             );
-            y += categoryHeight + padding;
+            y += buttonHeight + padding;
+        }
+
+        for (CategoryButton button : categoryButtons) {
+            button.setTextScale(textScale);
         }
     }
 
@@ -110,6 +133,7 @@ public class Sidebar {
         private int y;
         private int width;
         private int height;
+        private float textScale = 1.0f;
 
         public CategoryButton(Category category, int index) {
             this.category = category;
@@ -126,6 +150,10 @@ public class Sidebar {
 
         public void setSelected(boolean selected) {
             this.selected = selected;
+        }
+
+        public void setTextScale(float scale) {
+            this.textScale = scale;
         }
 
         public boolean isMouseOver(int mouseX, int mouseY) {
@@ -163,11 +191,13 @@ public class Sidebar {
         }
 
         private void drawCategoryName(DrawContext dc) {
-            // Center the text vertically and horizontally
             String name = category.name();
-            int textWidth = mainScreen.getTextRenderer().getWidth(name);
-            int textX = x + (width - textWidth) / 2;
-            int textY = y + (height - 8) / 2; // 8 is approximate font height
+
+            int textWidth = (int)(mainScreen.getTextRenderer().getWidth(name) * textScale);
+            int textHeight = (int)(mainScreen.getTextRenderer().fontHeight * textScale);
+
+            int textX = x + padding;
+            int textY = y + (height - textHeight) / 2;
 
             dc.drawText(mainScreen.getTextRenderer(), name, textX, textY, TEXT_COLOR, true);
         }
