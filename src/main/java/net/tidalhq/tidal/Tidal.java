@@ -1,6 +1,7 @@
 package net.tidalhq.tidal;
 
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -12,6 +13,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.gui.MainScreen;
+import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
 import org.slf4j.Logger;
@@ -26,10 +28,12 @@ public class Tidal implements ClientModInitializer {
 	private static final MinecraftClient mc = MinecraftClient.getInstance();
 
 	private static ServerState serverState;
+	private static MacroManager macroManager;
 
 	@Override
 	public void onInitializeClient() {
 		serverState = ServerState.getInstance();
+		macroManager = MacroManager.getInstance();
 
 		registerCommands();
 		registerConnectionEvents();
@@ -44,6 +48,7 @@ public class Tidal implements ClientModInitializer {
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			serverState.reset();
+			macroManager.setEnabled(false);
 		});
 	}
 
@@ -67,6 +72,26 @@ public class Tidal implements ClientModInitializer {
 					}
 			));
 		});
+
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+			dispatcher.register(ClientCommandManager.literal("macro")
+					.then(ClientCommandManager.literal("toggle")
+							.executes(context -> {
+								macroManager.setEnabled(!macroManager.isEnabled());
+								context.getSource().sendFeedback(
+										Text.literal("Macro " + (macroManager.isEnabled() ? "enabled" : "disabled"))
+								);
+								return 1;
+							}))
+					.then(ClientCommandManager.literal("select")
+							.then(ClientCommandManager.argument("name", StringArgumentType.string())
+									.executes(context -> {
+										String name = StringArgumentType.getString(context, "name");
+										macroManager.setActiveMacro(name);
+										context.getSource().sendFeedback(Text.literal("Selected macro: " + name));
+										return 1;
+									}))));
+		});
 	}
 
 	private void registerTickEvents() {
@@ -75,6 +100,8 @@ public class Tidal implements ClientModInitializer {
 				if (client.player.age % 20 == 0) {
 					serverState.update();
 				}
+
+				macroManager.onTick();
 			}
 		});
 	}

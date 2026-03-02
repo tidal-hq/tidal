@@ -1,7 +1,5 @@
 package net.tidalhq.tidal.state;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-
 public class PlayerState {
     private static PlayerState instance;
 
@@ -14,6 +12,10 @@ public class PlayerState {
     }
 
     private void init() {
+
+    }
+
+    private void onTick() {
 
     }
 
