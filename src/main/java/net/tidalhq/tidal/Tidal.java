@@ -13,6 +13,10 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
+import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.impl.ClientTickEvent;
+import net.tidalhq.tidal.event.impl.ServerConnectEvent;
+import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.state.ServerState;
@@ -32,26 +36,46 @@ public class Tidal implements ClientModInitializer {
 
 	private static ServerState serverState;
 	private static MacroManager macroManager;
+	private static EventBus eventBus;
 
 	@Override
 	public void onInitializeClient() {
+		eventBus = EventBus.getInstance();
+
 		serverState = ServerState.getInstance();
 		macroManager = MacroManager.getInstance();
 
+		eventBus.register(this);
+
 		registerCommands();
-		registerConnectionEvents();
-		registerMacroEvents();
+		registerEvents();
+//		registerConnectionEvents();
+//		registerMacroEvents();
 	}
 
-	private void registerConnectionEvents() {
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-			serverState.update();
+//	private void registerConnectionEvents() {
+//		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+//			serverState.update();
+//
+//		});
+//
+//		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+//			serverState.reset();
+//			macroManager.setEnabled(false);
+//		});
+//	}
 
+	private void registerEvents() {
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			eventBus.post(new ServerConnectEvent(client.getCurrentServerEntry()));
 		});
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-			serverState.reset();
-			macroManager.setEnabled(false);
+			eventBus.post(new ServerDisconnectEvent());
+		});
+
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			eventBus.post(new ClientTickEvent());
 		});
 	}
 
@@ -98,16 +122,6 @@ public class Tidal implements ClientModInitializer {
 	}
 
 	private void registerMacroEvents() {
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			if (client.world != null && client.player != null) {
-				if (client.player.age % 20 == 0) {
-					serverState.update();
-				}
-
-				macroManager.onTick();
-			}
-		});
-
 		ClientReceiveMessageEvents.GAME.register((message, signedMessage) -> {
 			Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
 			Matcher matcher = pattern.matcher(message.getString());

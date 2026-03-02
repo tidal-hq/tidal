@@ -2,21 +2,19 @@ package net.tidalhq.tidal.state;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
+import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.ServerConnectEvent;
+import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class ServerState {
     private static ServerState instance;
 
-    private String currentServerAddress;
-    private String currentServerName;
-    private boolean isConnectedToServer;
-    private long lastServerCheckTime;
+    private ServerInfo serverInfo;
 
     private ServerState() {
-        this.currentServerAddress = null;
-        this.currentServerName = null;
-        this.isConnectedToServer = false;
-        this.lastServerCheckTime = 0;
+        this.serverInfo = null;
     }
 
     public static ServerState getInstance() {
@@ -26,74 +24,20 @@ public class ServerState {
         return instance;
     }
 
-    public void update() {
-        MinecraftClient client = MinecraftClient.getInstance();
-
-        if (client.getNetworkHandler() != null && client.getNetworkHandler().getConnection() != null) {
-            this.isConnectedToServer = true;
-
-            ServerInfo serverInfo = client.getCurrentServerEntry();
-
-            if (serverInfo != null) {
-                this.currentServerAddress = serverInfo.address;
-                this.currentServerName = serverInfo.name;
-            } else if (client.isIntegratedServerRunning()) {
-                this.currentServerAddress = "singleplayer";
-                this.currentServerName = client.getServer() != null ?
-                        client.getServer().getSaveProperties().getLevelName() : "Singleplayer";
-            }
-        } else {
-            this.isConnectedToServer = false;
-            this.currentServerAddress = null;
-            this.currentServerName = null;
-        }
-
-        this.lastServerCheckTime = System.currentTimeMillis();
+    @Subscribe
+    public void onServerConnect(ServerConnectEvent event) {
+        this.serverInfo = event.getServerInfo();
     }
 
-    @Nullable
-    public String getCurrentServerAddress() {
-        return currentServerAddress;
+    @Subscribe
+    public void onServerDisconnect(ServerDisconnectEvent event) {
+        this.serverInfo = null;
     }
 
-    @Nullable
-    public String getCurrentServerName() {
-        return currentServerName;
+    public boolean isConnectedToHypixel() {
+        if (this.serverInfo == null) return false;
+
+        return this.serverInfo.address.toLowerCase().contains("hypixel.net");
     }
 
-    public boolean isConnectedToServer() {
-        return isConnectedToServer;
-    }
-
-    public boolean isConnectedToMultiplayer() {
-        return isConnectedToServer &&
-                currentServerAddress != null &&
-                !currentServerAddress.equals("singleplayer");
-    }
-
-    public boolean isInSinglePlayer() {
-        return isConnectedToServer &&
-                currentServerAddress != null &&
-                currentServerAddress.equals("singleplayer");
-    }
-
-    public boolean isOnServer(String address) {
-        if (!isConnectedToServer || currentServerAddress == null) {
-            return false;
-        }
-
-        return currentServerAddress.equals(address) ||
-                currentServerAddress.startsWith(address + ":");
-    }
-
-    public long getLastServerCheckTime() {
-        return lastServerCheckTime;
-    }
-
-    public void reset() {
-        this.currentServerAddress = null;
-        this.currentServerName = null;
-        this.isConnectedToServer = false;
-        this.lastServerCheckTime = System.currentTimeMillis();
-    }
 }

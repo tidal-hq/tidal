@@ -1,5 +1,9 @@
 package net.tidalhq.tidal.macro;
 
+import net.tidalhq.tidal.event.Event;
+import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,8 +14,14 @@ public class MacroManager {
     private Macro activeMacro;
     private boolean enabled = false;
 
+    private final EventBus eventBus;
+
     private MacroManager() {
         macros = new HashMap<>();
+
+        eventBus = EventBus.getInstance();
+        eventBus.register(this);
+
         registerMacros();
     }
 
@@ -23,7 +33,10 @@ public class MacroManager {
     }
 
     private void registerMacros() {
-        macros.put("ssdsmushroom", new SShapeMushroomSDSMacro());
+
+        SShapeMushroomSDSMacro mushroomMacro = new SShapeMushroomSDSMacro();
+        macros.put("ssdsmushroom", mushroomMacro);
+        eventBus.register(mushroomMacro);
     }
 
     public Map<String, Macro> getMacros() {
@@ -51,7 +64,8 @@ public class MacroManager {
         }
     }
 
-    public void onTick() {
+    @Subscribe
+    public void onClientTickEvent(ClientTickEvent event) {
         if (enabled && activeMacro != null) {
             activeMacro.onTick();
             activeMacro.updateState();
