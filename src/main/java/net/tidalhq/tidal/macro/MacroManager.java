@@ -58,4 +58,10 @@ public class MacroManager {
             activeMacro.invokeState();
         }
     }
+
+    public void onDeath() {
+        if (enabled && activeMacro != null) {
+            activeMacro.onDeath();
+        }
+    }
 }

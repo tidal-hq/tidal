@@ -28,5 +28,11 @@ public abstract class Macro {
     }
     public void onTick() {}
 
+    public void onDeath() {
+        String command = "warp garden";
+
+        client.player.networkHandler.sendChatCommand(command);
+    }
+
     public abstract State calculateDirection();
 }

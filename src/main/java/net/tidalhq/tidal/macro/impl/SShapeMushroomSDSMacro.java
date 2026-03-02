@@ -43,11 +43,6 @@
                     }
                     break;
                 case RIGHT:
-                    if (BlockUtil.canWalkBackward(client.world, client.player)) {
-                        changeState(State.SWITCHING_LANE);
-                        break;
-                    }
-
                     if (BlockUtil.canWalkRight(client.world, client.player)) {
                         changeState(State.RIGHT);
                         break;

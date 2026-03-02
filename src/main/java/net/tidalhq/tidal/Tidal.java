@@ -9,6 +9,7 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
@@ -20,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Environment(EnvType.CLIENT)
 public class Tidal implements ClientModInitializer {
@@ -37,7 +40,7 @@ public class Tidal implements ClientModInitializer {
 
 		registerCommands();
 		registerConnectionEvents();
-		registerTickEvents();
+		registerMacroEvents();
 	}
 
 	private void registerConnectionEvents() {
@@ -94,7 +97,7 @@ public class Tidal implements ClientModInitializer {
 		});
 	}
 
-	private void registerTickEvents() {
+	private void registerMacroEvents() {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.world != null && client.player != null) {
 				if (client.player.age % 20 == 0) {
@@ -102,6 +105,15 @@ public class Tidal implements ClientModInitializer {
 				}
 
 				macroManager.onTick();
+			}
+		});
+
+		ClientReceiveMessageEvents.GAME.register((message, signedMessage) -> {
+			Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
+			Matcher matcher = pattern.matcher(message.getString());
+
+			if (matcher.find()) {
+				MacroManager.getInstance().onDeath();
 			}
 		});
 	}
