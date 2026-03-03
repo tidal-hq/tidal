@@ -7,6 +7,7 @@ public enum State {
     FORWARD,
     BACKWARD,
     DROPPING,
-    SWITCHING_LANE
+    SWITCHING_LANE,
+    WARPING,
 
 }

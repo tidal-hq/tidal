@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.event.impl.ServerConnectEvent;
 import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
@@ -23,10 +24,6 @@ import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.awt.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Environment(EnvType.CLIENT)
 public class Tidal implements ClientModInitializer {
@@ -49,21 +46,7 @@ public class Tidal implements ClientModInitializer {
 
 		registerCommands();
 		registerEvents();
-//		registerConnectionEvents();
-//		registerMacroEvents();
 	}
-
-//	private void registerConnectionEvents() {
-//		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-//			serverState.update();
-//
-//		});
-//
-//		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-//			serverState.reset();
-//			macroManager.setEnabled(false);
-//		});
-//	}
 
 	private void registerEvents() {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -76,6 +59,10 @@ public class Tidal implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			eventBus.post(new ClientTickEvent());
+		});
+
+		ClientReceiveMessageEvents.GAME.register((message, signedMessage) -> {
+			eventBus.post(new ClientReceiveGameMessageEvent(message.getString()));
 		});
 	}
 
@@ -118,17 +105,6 @@ public class Tidal implements ClientModInitializer {
 										context.getSource().sendFeedback(Text.literal("Selected macro: " + name));
 										return 1;
 									}))));
-		});
-	}
-
-	private void registerMacroEvents() {
-		ClientReceiveMessageEvents.GAME.register((message, signedMessage) -> {
-			Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
-			Matcher matcher = pattern.matcher(message.getString());
-
-			if (matcher.find()) {
-				MacroManager.getInstance().onDeath();
-			}
 		});
 	}
 }

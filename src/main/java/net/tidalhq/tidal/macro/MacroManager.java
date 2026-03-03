@@ -1,12 +1,15 @@
 package net.tidalhq.tidal.macro;
 
-import net.tidalhq.tidal.event.Event;
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MacroManager {
     private static MacroManager instance;
@@ -73,9 +76,15 @@ public class MacroManager {
         }
     }
 
-    public void onDeath() {
-        if (enabled && activeMacro != null) {
-            activeMacro.onDeath();
+    @Subscribe
+    public void onClientReceiveGameMessage(ClientReceiveGameMessageEvent event) {
+        Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
+        Matcher matcher = pattern.matcher(event.getMessageContent());
+
+        if (matcher.find()) {
+            if (enabled && activeMacro != null) {
+                activeMacro.onDeath();
+            }
         }
     }
 }
