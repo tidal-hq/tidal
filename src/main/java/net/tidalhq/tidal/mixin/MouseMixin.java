@@ -3,7 +3,7 @@ package net.tidalhq.tidal.mixin;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.input.MouseInput;
-import net.tidalhq.tidal.macro.MacroManager;
+import net.tidalhq.tidal.Tidal;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,7 +19,7 @@ public class MouseMixin {
             return;
         }
 
-        if (MacroManager.getInstance().isEnabled()) {
+        if (Tidal.getMacroManager().isEnabled()) {
             ci.cancel();
         }
     }
@@ -32,7 +32,7 @@ public class MouseMixin {
             return;
         }
 
-        if (MacroManager.getInstance().isEnabled()) {
+        if (Tidal.getMacroManager().isEnabled()) {
             ci.cancel();
         }
     }
@@ -45,7 +45,7 @@ public class MouseMixin {
             return;
         }
 
-        if (MacroManager.getInstance().isEnabled()) {
+        if (Tidal.getMacroManager().isEnabled()) {
             ci.cancel();
         }
     }

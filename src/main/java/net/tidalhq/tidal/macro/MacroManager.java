@@ -1,90 +1,55 @@
 package net.tidalhq.tidal.macro;
 
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.event.EventBus;
-import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
-import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
-import java.util.HashMap;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MacroManager {
-    private static MacroManager instance;
-    private final Map<String, Macro> macros;
-    private Macro activeMacro;
-    private boolean enabled = false;
-
+    private final Map<String, Macro> macros = new LinkedHashMap<>();
     private final EventBus eventBus;
+    private Macro activeMacro;
+    private String activeMacroId;
+    private boolean enabled;
 
-    private MacroManager() {
-        macros = new HashMap<>();
-
-        eventBus = EventBus.getInstance();
+    public MacroManager(MacroContext ctx) {
+        this.eventBus = ctx.eventBus();
         eventBus.register(this);
 
-        registerMacros();
+        register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
     }
 
-    public static MacroManager getInstance() {
-        if (instance == null) {
-            instance = new MacroManager();
-        }
-        return instance;
+    private void register(String id, Macro macro) {
+        macros.put(id, macro);
+        eventBus.register(macro);
     }
 
-    private void registerMacros() {
+    public void setActiveMacro(String id) {
+        Macro macro = macros.get(id);
+        if (macro == null) return;
 
-        SShapeMushroomSDSMacro mushroomMacro = new SShapeMushroomSDSMacro();
-        macros.put("ssdsmushroom", mushroomMacro);
-        eventBus.register(mushroomMacro);
-    }
-
-    public Map<String, Macro> getMacros() {
-        return macros;
-    }
-
-    public Macro getActiveMacro() {
-        return activeMacro;
-    }
-
-    public void setActiveMacro(String name) {
-        this.activeMacro = macros.get(name);
-    }
-
-    public boolean isEnabled() {
-        return enabled;
+        activeMacro = macro;
+        activeMacroId = id;
     }
 
     public void setEnabled(boolean enabled) {
+        if (this.enabled == enabled) return;
+
         this.enabled = enabled;
-        if (activeMacro != null) {
-            if (enabled) {
-                activeMacro.onEnable();
-            }
+
+        if (activeMacro == null) return;
+
+        if (enabled) {
+            activeMacro.onEnable();
+        } else {
+            activeMacro.onDisable();
         }
     }
 
-    @Subscribe
-    public void onClientTickEvent(ClientTickEvent event) {
-        if (enabled && activeMacro != null) {
-            activeMacro.onTick();
-            activeMacro.updateState();
-            activeMacro.invokeState();
-        }
-    }
-
-    @Subscribe
-    public void onClientReceiveGameMessage(ClientReceiveGameMessageEvent event) {
-        Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
-        Matcher matcher = pattern.matcher(event.getMessageContent());
-
-        if (matcher.find()) {
-            if (enabled && activeMacro != null) {
-                activeMacro.onDeath();
-            }
-        }
-    }
+    public String getActiveMacroId() { return activeMacroId; }
+    public Macro getActiveMacro() { return activeMacro; }
+    public boolean isEnabled() { return enabled; }
+    public Map<String, Macro> getMacros() { return Collections.unmodifiableMap(macros); }
 }

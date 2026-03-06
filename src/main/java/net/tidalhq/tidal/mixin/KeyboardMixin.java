@@ -4,7 +4,7 @@ import net.minecraft.client.Keyboard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.input.KeyInput;
-import net.tidalhq.tidal.macro.MacroManager;
+import net.tidalhq.tidal.Tidal;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,7 +22,7 @@ public class KeyboardMixin {
             return;
         }
 
-        if (MacroManager.getInstance().isEnabled()) {
+        if (Tidal.getMacroManager().isEnabled()) {
             if (client.options.chatKey.matchesKey(input) ||
                     client.options.commandKey.matchesKey(input) ||
                     client.options.screenshotKey.matchesKey(input) ||

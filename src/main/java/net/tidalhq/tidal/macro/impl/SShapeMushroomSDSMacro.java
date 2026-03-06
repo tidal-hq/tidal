@@ -1,69 +1,92 @@
 package net.tidalhq.tidal.macro.impl;
 
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.World;
 import net.tidalhq.tidal.macro.Macro;
+import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.State;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.BlockUtil;
+import net.tidalhq.tidal.util.InputUtil;
 
+@SuppressWarnings("resource")
 public class SShapeMushroomSDSMacro extends Macro {
     private boolean leftGround = false;
 
+    private final World world;
+    private final PlayerEntity player;
+    private final GameOptions options;
+
+    public SShapeMushroomSDSMacro(MacroContext ctx) {
+        super(ctx);
+
+        this.world = ctx.client().world;
+        this.player = ctx.client().player;
+        this.options = ctx.client().options;
+    }
+
     @Override
-    public Location getLocation() {
+    public String getName() {
+        return "S-Shape Mushroom (SDS)";
+    }
+
+    @Override
+    public Location getTargetLocation() {
         return Location.GARDEN;
     }
 
     @Override
     public void updateState() {
-        if (getCurrentState() == null) {
-            changeState(State.NONE);
+        if (getState() == null) {
+            setState(State.NONE);
             return;
         }
 
-        switch (getCurrentState()) {
+        switch (getState()) {
             case SWITCHING_LANE:
-                if (!BlockUtil.canWalkBackward(client.world, client.player)) {
-                    changeState(State.NONE);
+                if (!BlockUtil.canWalkBackward(this.world, this.player)) {
+                    setState(State.NONE);
                 }
                 break;
 
             case DROPPING:
                 if (!leftGround) {
-                    leftGround = !client.player.isOnGround();
+                    leftGround = !player.isOnGround();
                     break;
                 }
 
-                if (client.player.isOnGround()) {
-                    changeState(State.NONE);
+                if (player.isOnGround()) {
+                    setState(State.NONE);
                 }
                 break;
 
             case RIGHT:
-                if (BlockUtil.canWalkRight(client.world, client.player)) {
-                    changeState(State.RIGHT);
+                if (BlockUtil.canWalkRight(world, player)) {
+                    setState(State.RIGHT);
                 } else {
-                    changeState(State.DROPPING);
+                    setState(State.DROPPING);
                 }
                 break;
 
             case LEFT:
-                if (BlockUtil.canWalkBackward(client.world, client.player)) {
-                    changeState(State.SWITCHING_LANE);
-                } else if (BlockUtil.canWalkLeft(client.world, client.player)) {
-                    changeState(State.LEFT);
+                if (BlockUtil.canWalkBackward(world, player)) {
+                    setState(State.SWITCHING_LANE);
+                } else if (BlockUtil.canWalkLeft(world, player)) {
+                    setState(State.LEFT);
                 } else {
-                    changeState(State.NONE);
+                    setState(State.NONE);
                 }
                 break;
 
             case NONE:
-                changeState(calculateDirection());
+                setState(calculateDirection());
                 break;
         }
     }
 
     @Override
-    protected void onStateChanged(State newState) {
+    protected void onSetState(State newState) {
         if (newState != State.DROPPING) {
             leftGround = false;
         }
@@ -73,26 +96,20 @@ public class SShapeMushroomSDSMacro extends Macro {
     public void onTick() {
         super.onTick();
     }
-
-    @Override
-    protected void resetInputs() {
-        super.resetInputs();
-    }
-
     public State calculateDirection() {
-        if (BlockUtil.isLeftCropReady(client.world, client.player)) {
+        if (BlockUtil.isLeftCropReady(world, player)) {
             return State.LEFT;
         }
 
-        if (BlockUtil.isRightCropReady(client.world, client.player)) {
+        if (BlockUtil.isRightCropReady(world, player)) {
             return State.RIGHT;
         }
 
-        if (BlockUtil.canWalkLeft(client.world, client.player)) {
+        if (BlockUtil.canWalkLeft(world, player)) {
             return State.LEFT;
         }
 
-        if (BlockUtil.canWalkRight(client.world, client.player)) {
+        if (BlockUtil.canWalkRight(world, player)) {
             return State.RIGHT;
         }
 
@@ -101,33 +118,42 @@ public class SShapeMushroomSDSMacro extends Macro {
 
     @Override
     public void invokeState() {
-        if (getCurrentState() == null) return;
+        if (getState() == null) return;
 
-        client.options.leftKey.setPressed(false);
-        client.options.rightKey.setPressed(false);
-        client.options.backKey.setPressed(false);
-        client.options.attackKey.setPressed(false);
+//        this.options.leftKey.setPressed(false);
+//        this.options.rightKey.setPressed(false);
+//        this.options.backKey.setPressed(false);
+//        this.options.attackKey.setPressed(false);
+        InputUtil.reset();
 
-        switch (getCurrentState()) {
+        switch (getState()) {
             case SWITCHING_LANE:
-                client.options.leftKey.setPressed(true);
-                client.options.backKey.setPressed(true);
-                client.options.attackKey.setPressed(true);
+                InputUtil.press(
+                        this.options.leftKey,
+                        this.options.backKey,
+                        this.options.attackKey
+                );
                 break;
 
             case DROPPING:
-                client.options.rightKey.setPressed(true);
+                InputUtil.press(
+                        this.options.rightKey
+                );
                 break;
 
             case LEFT:
-                client.options.attackKey.setPressed(true);
-                client.options.leftKey.setPressed(true);
+                InputUtil.press(
+                        this.options.leftKey,
+                        this.options.attackKey
+                );
                 break;
 
             case RIGHT:
-                client.options.attackKey.setPressed(true);
-                client.options.rightKey.setPressed(true);
-                client.options.backKey.setPressed(true);
+                InputUtil.press(
+                        this.options.rightKey,
+                        this.options.backKey,
+                        this.options.attackKey
+                );
                 break;
         }
     }
@@ -135,6 +161,5 @@ public class SShapeMushroomSDSMacro extends Macro {
     @Override
     public void onDeath() {
         super.onDeath();
-//        changeState(State.NONE);
     }
 }

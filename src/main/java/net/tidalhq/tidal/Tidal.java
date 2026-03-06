@@ -19,6 +19,7 @@ import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.event.impl.ServerConnectEvent;
 import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
 import net.tidalhq.tidal.gui.MainScreen;
+import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
@@ -29,18 +30,25 @@ import org.slf4j.LoggerFactory;
 public class Tidal implements ClientModInitializer {
 	public static final String MOD_ID = "tidal";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-	private static final MinecraftClient mc = MinecraftClient.getInstance();
 
-	private static ServerState serverState;
 	private static MacroManager macroManager;
+	public static MacroManager getMacroManager() {
+		return macroManager;
+	}
+
 	private static EventBus eventBus;
 
 	@Override
 	public void onInitializeClient() {
+		MacroContext ctx = new MacroContext(
+			MinecraftClient.getInstance(),
+				ServerState.getInstance(),
+				TablistState.getInstance(),
+				EventBus.getInstance()
+		);
 		eventBus = EventBus.getInstance();
 
-		serverState = ServerState.getInstance();
-		macroManager = MacroManager.getInstance();
+		macroManager = new MacroManager(ctx);
 
 		eventBus.register(this);
 
@@ -69,21 +77,12 @@ public class Tidal implements ClientModInitializer {
 	private void registerCommands() {
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			dispatcher.register(ClientCommandManager.literal(MOD_ID).executes( context -> {
-				mc.send(() -> {
-					mc.setScreen(new MainScreen());
+				MinecraftClient.getInstance().send(() -> {
+					MinecraftClient.getInstance().setScreen(new MainScreen());
 				});
 
 				return 1;
 			}
-			));
-		});
-
-
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-			dispatcher.register(ClientCommandManager.literal("loc").executes( context -> {
-						context.getSource().sendFeedback(Text.literal(TablistState.getInstance().getCurrentLocation().name()));
-						return 1;
-					}
 			));
 		});
 

@@ -1,110 +1,86 @@
 package net.tidalhq.tidal.macro;
 
-import net.minecraft.client.MinecraftClient;
 import net.tidalhq.tidal.state.Location;
-import net.tidalhq.tidal.state.ServerState;
-import net.tidalhq.tidal.state.TablistState;
-import net.tidalhq.tidal.util.BlockUtil;
+import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
 public abstract class Macro {
-    public static final MinecraftClient client = MinecraftClient.getInstance();
-    private State currentState;
-    private State lastState;
+    protected final MacroContext ctx;
 
-    private boolean pendingWarp = false;
-    private int warpDelayTicks = 0;
-    private boolean wasSneaking = false;
+    private boolean wasSneaking;
 
-    public State getCurrentState() {
-        return currentState;
+    private final static int WARP_DELAY_MIN = 20;
+    private final static int WARP_DELAY_MAX = 60;
+
+    private boolean pendingWarp;
+    private int warpDelayTicks;
+
+    private State state;
+    public State getState() { return state; }
+    public void setState(State state) {
+        this.state = state;
+
+        onSetState(state);
     }
 
-    public State getLastState() {
-        return lastState;
+    protected Macro(MacroContext ctx) {
+        this.ctx = ctx;
     }
 
-    public void changeState(State state) {
-        lastState = currentState;
-        currentState = state;
-        onStateChanged(state);
+    protected void onSetState(State newState) {
     }
 
     public void onEnable() {
-        if (!ServerState.getInstance().isConnectedToHypixel()) {
-            return;
-        }
-
-        if (TablistState.getInstance().getCurrentLocation() != Location.GARDEN) {
-            PlayerUtil.warp(Location.GARDEN);
-        }
-
-        if (!BlockUtil.isAtFarmStart(client.world, client.player)) {
-            PlayerUtil.warp(Location.GARDEN);
-        }
+        Location target = this.getTargetLocation();
+        if (!ctx.serverState().isConnectedToHypixel()) return;
+        if (!ctx.tablistState().getCurrentLocation().equals(target)) PlayerUtil.warp(target);
     }
 
-    public void onDisable() {
-        resetInputs();
-    }
+    public void onDisable() {}
+
+    public void onPause() {}
+    public void onResume() {}
 
     public void onTick() {
         handleWarp();
         updateState();
         invokeState();
 
-        boolean isWarpingOrDropping = getCurrentState() == State.WARPING || getCurrentState() == State.DROPPING;
-        boolean shouldSneak = !isWarpingOrDropping && !client.player.isOnGround();
+        boolean shouldSneak = !((getState() != State.WARPING && getState() != State.DROPPING) && (ctx.client().player.isOnGround()));
 
         if (shouldSneak) {
-            client.options.sneakKey.setPressed(true);
-            wasSneaking = true;
+            InputUtil.sneak();
+            this.wasSneaking = true;
         }
 
         if (wasSneaking && !shouldSneak) {
-            client.options.sneakKey.setPressed(false);
-            wasSneaking = false;
+            InputUtil.unSneak();
+            this.wasSneaking = false;
+        }
+    }
+
+    public void handleWarp() {
+        if (!pendingWarp) return;
+
+        warpDelayTicks--;
+
+        if (warpDelayTicks <= 0) {
+            pendingWarp = false;
+            PlayerUtil.warp(this.getTargetLocation());
         }
     }
 
     public void onDeath() {
-        pendingWarp = true;
-        warpDelayTicks = 40;
-        changeState(State.WARPING);
-        resetInputs();
+        this.pendingWarp = true;
+        this.warpDelayTicks = WARP_DELAY_MIN + (int)(Math.random() * (WARP_DELAY_MAX - WARP_DELAY_MIN));
+
+        setState(State.WARPING);
+        InputUtil.reset();
     }
 
     public abstract void updateState();
     public abstract void invokeState();
-    public abstract Location getLocation();
+    public abstract Location getTargetLocation();
 
-    protected void onStateChanged(State newState) {
-    }
-
-    protected void resetInputs() {
-        client.options.leftKey.setPressed(false);
-        client.options.rightKey.setPressed(false);
-        client.options.backKey.setPressed(false);
-        client.options.forwardKey.setPressed(false);
-        client.options.attackKey.setPressed(false);
-        client.options.useKey.setPressed(false);
-        client.options.sneakKey.setPressed(false);
-        client.options.jumpKey.setPressed(false);
-    }
-
-    private void handleWarp() {
-        if (pendingWarp) {
-            warpDelayTicks--;
-            if (warpDelayTicks <= 0) {
-                pendingWarp = false;
-                executeWarp();
-            }
-        }
-    }
-
-    protected void executeWarp() {
-        PlayerUtil.warp(getLocation());
-
-        changeState(State.NONE);
-    }
+    public abstract String getName();
 }
