@@ -77,5 +77,7 @@ public abstract class Macro {
     protected void executeWarp() {
         String command = "warp " + getLocation().getName();
         client.getNetworkHandler().sendChatCommand(command);
+
+        changeState(State.NONE);
     }
 }

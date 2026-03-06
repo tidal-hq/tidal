@@ -137,6 +137,6 @@ public class SShapeMushroomSDSMacro extends Macro {
     @Override
     public void onDeath() {
         super.onDeath();
-        changeState(State.NONE);
+//        changeState(State.NONE);
     }
 }
