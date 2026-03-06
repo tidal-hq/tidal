@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TablistState {
-    private static TablistState instance;
+    private static final TablistState instance = new TablistState();
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
     private final Pattern areaPattern = Pattern.compile("Area:\\s(.+)");
@@ -37,10 +37,6 @@ public class TablistState {
     }
 
     public static TablistState getInstance() {
-        if (instance == null) {
-            instance = new TablistState();
-        }
-
         return instance;
     }
 

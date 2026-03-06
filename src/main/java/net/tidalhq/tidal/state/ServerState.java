@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class ServerState {
-    private static ServerState instance;
+    private static final ServerState instance = new ServerState();
 
     private ServerInfo serverInfo;
 
@@ -21,9 +21,6 @@ public class ServerState {
     }
 
     public static ServerState getInstance() {
-        if (instance == null) {
-            instance = new ServerState();
-        }
         return instance;
     }
 
