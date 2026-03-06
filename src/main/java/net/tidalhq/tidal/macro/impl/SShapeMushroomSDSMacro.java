@@ -7,7 +7,6 @@ import net.tidalhq.tidal.util.BlockUtil;
 
 public class SShapeMushroomSDSMacro extends Macro {
     private boolean leftGround = false;
-    private boolean isSneaking = false;
 
     @Override
     public Location getLocation() {
@@ -73,23 +72,22 @@ public class SShapeMushroomSDSMacro extends Macro {
     @Override
     public void onTick() {
         super.onTick();
-
-        if (client.player != null) {
-            boolean shouldSneak = !client.player.isOnGround();
-            if (shouldSneak != isSneaking) {
-                isSneaking = shouldSneak;
-                client.options.sneakKey.setPressed(shouldSneak);
-            }
-        }
     }
 
     @Override
     protected void resetInputs() {
         super.resetInputs();
-        isSneaking = false;
     }
 
     public State calculateDirection() {
+        if (BlockUtil.isLeftCropReady(client.world, client.player)) {
+            return State.LEFT;
+        }
+
+        if (BlockUtil.isRightCropReady(client.world, client.player)) {
+            return State.RIGHT;
+        }
+
         if (BlockUtil.canWalkLeft(client.world, client.player)) {
             return State.LEFT;
         }

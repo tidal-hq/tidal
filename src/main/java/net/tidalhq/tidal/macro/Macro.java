@@ -1,8 +1,11 @@
 package net.tidalhq.tidal.macro;
 
 import net.minecraft.client.MinecraftClient;
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.state.Location;
+import net.tidalhq.tidal.state.ServerState;
+import net.tidalhq.tidal.state.TablistState;
+import net.tidalhq.tidal.util.BlockUtil;
+import net.tidalhq.tidal.util.PlayerUtil;
 
 public abstract class Macro {
     public static final MinecraftClient client = MinecraftClient.getInstance();
@@ -11,6 +14,7 @@ public abstract class Macro {
 
     private boolean pendingWarp = false;
     private int warpDelayTicks = 0;
+    private boolean wasSneaking = false;
 
     public State getCurrentState() {
         return currentState;
@@ -27,6 +31,17 @@ public abstract class Macro {
     }
 
     public void onEnable() {
+        if (!ServerState.getInstance().isConnectedToHypixel()) {
+            return;
+        }
+
+        if (TablistState.getInstance().getCurrentLocation() != Location.GARDEN) {
+            PlayerUtil.warp(Location.GARDEN);
+        }
+
+        if (!BlockUtil.isAtFarmStart(client.world, client.player)) {
+            PlayerUtil.warp(Location.GARDEN);
+        }
     }
 
     public void onDisable() {
@@ -37,6 +52,19 @@ public abstract class Macro {
         handleWarp();
         updateState();
         invokeState();
+
+        boolean isWarpingOrDropping = getCurrentState() == State.WARPING || getCurrentState() == State.DROPPING;
+        boolean shouldSneak = !isWarpingOrDropping && !client.player.isOnGround();
+
+        if (shouldSneak) {
+            client.options.sneakKey.setPressed(true);
+            wasSneaking = true;
+        }
+
+        if (wasSneaking && !shouldSneak) {
+            client.options.sneakKey.setPressed(false);
+            wasSneaking = false;
+        }
     }
 
     public void onDeath() {
@@ -75,8 +103,7 @@ public abstract class Macro {
     }
 
     protected void executeWarp() {
-        String command = "warp " + getLocation().getName();
-        client.getNetworkHandler().sendChatCommand(command);
+        PlayerUtil.warp(getLocation());
 
         changeState(State.NONE);
     }

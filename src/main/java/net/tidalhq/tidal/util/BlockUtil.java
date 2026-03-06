@@ -187,7 +187,6 @@ public class BlockUtil {
         return true;
     }
 
-    // Helper methods for checking specific directions
     public static boolean canWalkForward(World world, PlayerEntity player) {
         BlockPos forwardPos = getRelativeBlockPos(0, 0, 1, player.getYaw(), player);
         return canWalkThrough(world, forwardPos, player, Direction.NORTH);
@@ -206,5 +205,211 @@ public class BlockUtil {
     public static boolean canWalkRight(World world, PlayerEntity player) {
         BlockPos rightPos = getRelativeBlockPos(1, 0, 0, player.getYaw(), player);
         return canWalkThrough(world, rightPos, player, Direction.EAST);
+    }
+
+    public static boolean isAtFarmStart(World world, PlayerEntity player) {
+        BlockPos behindPos = getRelativeBlockPos(0, -1, -1, player.getYaw(), player);
+        Block behindBlock = world.getBlockState(behindPos).getBlock();
+
+        boolean hasFarmlandBehind = isFarmland(behindBlock);
+
+        BlockPos frontGroundPos = getRelativeBlockPos(0, -1, 1, player.getYaw(), player);
+        BlockPos frontCropPos = getRelativeBlockPos(0, 0, 1, player.getYaw(), player);
+        BlockPos frontAbovePos = getRelativeBlockPos(0, 1, 1, player.getYaw(), player);
+
+        Block frontGroundBlock = world.getBlockState(frontGroundPos).getBlock();
+        Block frontCropBlock = world.getBlockState(frontCropPos).getBlock();
+        Block frontAboveBlock = world.getBlockState(frontAbovePos).getBlock();
+
+        boolean hasFarmlandAhead = isFarmland(frontGroundBlock);
+
+        boolean hasCropAhead = isCrop(frontCropBlock) ||
+                isCrop(frontAboveBlock) ||
+                frontCropBlock == Blocks.AIR;
+
+        boolean leftReady = isLeftCropReady(world, player);
+        boolean rightReady = isRightCropReady(world, player);
+        boolean anySideReady = leftReady || rightReady;
+
+        BlockPos standingOnPos = BlockPos.ofFloored(player.getX(), player.getY() - 0.5, player.getZ());
+        Block standingOnBlock = world.getBlockState(standingOnPos).getBlock();
+        boolean standingOnFarmland = isFarmland(standingOnBlock);
+
+        boolean isOnPath = standingOnBlock instanceof SlabBlock ||
+                standingOnBlock instanceof SoulSandBlock;
+        boolean gapBehind = !hasFarmlandBehind && !isOnPath;
+
+        boolean hasWaterAhead = false;
+        boolean hasWaterBehind = false;
+
+        for (int i = -1; i <= 1; i++) {
+            BlockPos checkPos = getRelativeBlockPos(0, -1, i, player.getYaw(), player);
+            if (world.getBlockState(checkPos).getBlock() == Blocks.WATER ||
+                    world.getBlockState(checkPos).getBlock() == Blocks.BUBBLE_COLUMN) {
+                if (i < 0) hasWaterBehind = true;
+                if (i > 0) hasWaterAhead = true;
+            }
+        }
+
+        if (hasFarmlandBehind && !anySideReady && hasFarmlandAhead) {
+            return true;
+        }
+
+        if (gapBehind && hasFarmlandAhead && standingOnFarmland) {
+            return true;
+        }
+
+        if (hasWaterBehind && !hasWaterAhead && hasFarmlandAhead) {
+            return true;
+        }
+
+        if (standingOnFarmland && !anySideReady && hasFarmlandAhead && hasCropAhead) {
+            return true;
+        }
+
+        if (isFarmland(frontGroundBlock)) {
+            if (gapBehind && standingOnFarmland) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isFarmland(Block block) {
+        return block instanceof FarmlandBlock ||
+                block == Blocks.SOUL_SAND ||
+                block == Blocks.SOUL_SOIL ||
+                block == Blocks.MYCELIUM;
+    }
+
+    private static boolean isCrop(Block block) {
+        return block == Blocks.MELON ||
+                block == Blocks.MELON_STEM ||
+                block == Blocks.PUMPKIN ||
+                block == Blocks.PUMPKIN_STEM ||
+                block == Blocks.WHEAT ||
+                block == Blocks.POTATOES ||
+                block == Blocks.CARROTS ||
+                block == Blocks.SUGAR_CANE ||
+                block == Blocks.CACTUS ||
+                block == Blocks.COCOA ||
+                block == Blocks.NETHER_WART ||
+                block == Blocks.SUNFLOWER ||
+                block == Blocks.ROSE_BUSH ||
+                block == Blocks.BROWN_MUSHROOM ||
+                block == Blocks.RED_MUSHROOM ||
+                block instanceof CropBlock;
+    }
+
+    public static boolean isCropReady(World world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        Block block = state.getBlock();
+
+        if (block == Blocks.MELON || block == Blocks.PUMPKIN) {
+            return true;
+        }
+
+        if (block == Blocks.MELON_STEM || block == Blocks.PUMPKIN_STEM) {
+            return hasFruitNearby(world, pos, block == Blocks.MELON_STEM);
+        }
+
+        if (block instanceof CropBlock crop) {
+            return crop.isMature(state);
+        }
+
+        if (block instanceof NetherWartBlock) {
+            return state.get(NetherWartBlock.AGE) >= 3;
+        }
+
+        if (block instanceof CocoaBlock) {
+            return state.get(CocoaBlock.AGE) >= 2;
+        }
+
+        if (block == Blocks.SUGAR_CANE) {
+            return isTopOfSugarCane(world, pos);
+        }
+
+        if (block == Blocks.CACTUS) {
+            return isTopOfCactus(world, pos);
+        }
+
+        if (block == Blocks.SUNFLOWER ||
+                block == Blocks.ROSE_BUSH) {
+            return true;
+        }
+
+        if (block == Blocks.BROWN_MUSHROOM || block == Blocks.RED_MUSHROOM) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean isTopOfSugarCane(World world, BlockPos pos) {
+        BlockPos belowPos = pos.down();
+        BlockState belowState = world.getBlockState(belowPos);
+
+        if (belowState.isOf(Blocks.SUGAR_CANE) && world.getBlockState(pos.up()).isAir()) {
+            BlockPos belowBelowPos = belowPos.down();
+            return world.getBlockState(belowBelowPos).isOf(Blocks.SUGAR_CANE);
+        }
+        return false;
+    }
+
+    private static boolean isTopOfCactus(World world, BlockPos pos) {
+        BlockPos belowPos = pos.down();
+        BlockState belowState = world.getBlockState(belowPos);
+
+        if (belowState.isOf(Blocks.CACTUS) && world.getBlockState(pos.up()).isAir()) {
+            BlockPos belowBelowPos = belowPos.down();
+            return world.getBlockState(belowBelowPos).isOf(Blocks.CACTUS);
+        }
+        return false;
+    }
+
+    private static boolean hasFruitNearby(World world, BlockPos stemPos, boolean isMelon) {
+        Block fruitType = isMelon ? Blocks.MELON : Blocks.PUMPKIN;
+
+        for (Direction dir : Direction.Type.HORIZONTAL) {
+            BlockPos checkPos = stemPos.offset(dir);
+            if (world.getBlockState(checkPos).getBlock() == fruitType) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean isSideCropReady(World world, PlayerEntity player, boolean checkLeft) {
+        int checkDistance = 3;
+        float xOffset = checkLeft ? -1 : 1;
+
+        for (int i = 1; i <= checkDistance; i++) {
+            BlockPos checkPos = getRelativeBlockPos(xOffset, 0, i, player.getYaw(), player);
+
+            if (isCropReady(world, checkPos)) {
+                return true;
+            }
+
+            BlockPos abovePos = checkPos.up();
+            if (isCropReady(world, abovePos)) {
+                return true;
+            }
+
+            BlockPos aboveAbovePos = checkPos.up(2);
+            if (isCropReady(world, aboveAbovePos)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean isLeftCropReady(World world, PlayerEntity player) {
+        return isSideCropReady(world, player, true);
+    }
+
+    public static boolean isRightCropReady(World world, PlayerEntity player) {
+        return isSideCropReady(world, player, false);
     }
 }

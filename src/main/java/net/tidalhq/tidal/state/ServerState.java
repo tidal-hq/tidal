@@ -2,6 +2,7 @@ package net.tidalhq.tidal.state;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ServerInfo;
+import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.ServerConnectEvent;
 import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
@@ -15,6 +16,8 @@ public class ServerState {
 
     private ServerState() {
         this.serverInfo = null;
+
+        EventBus.getInstance().register(this);
     }
 
     public static ServerState getInstance() {
