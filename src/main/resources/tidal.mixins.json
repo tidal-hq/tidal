@@ -12,7 +12,6 @@
 		"ClientPlayNetworkHandlerMixin",
 		"KeyboardMixin",
 		"MouseMixin",
-		"PlayerListHudAccessor",
 		"PlayerListHudMixin"
 	]
 }

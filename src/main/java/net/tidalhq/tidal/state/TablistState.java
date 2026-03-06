@@ -8,7 +8,6 @@ import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.PlayerListFooterSetEvent;
 import net.tidalhq.tidal.event.impl.PlayerListHeaderSetEvent;
 import net.tidalhq.tidal.event.impl.PlayerListUpdateEvent;
-import net.tidalhq.tidal.mixin.PlayerListHudAccessor;
 
 import java.util.Collection;
 import java.util.regex.Matcher;

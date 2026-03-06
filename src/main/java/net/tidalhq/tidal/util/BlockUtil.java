@@ -50,7 +50,6 @@ public class BlockUtil {
         );
     }
 
-    // Overloaded method that takes a PlayerEntity parameter
     public static BlockPos getRelativeBlockPos(float x, float y, float z, float yaw, PlayerEntity player) {
         return BlockPos.ofFloored(
                 player.getX() + getUnitX(yaw) * z + getUnitZ(yaw) * -1 * x,
@@ -120,7 +119,6 @@ public class BlockUtil {
             return facing == Direction.EAST && posDiff.getX() > 0;
         }
 
-        // Check if passable (air, water, etc)
         return state.isAir() || !state.isSolid();
     }
 
