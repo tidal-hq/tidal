@@ -3,6 +3,11 @@ package net.tidalhq.tidal.state;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
+import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.PlayerListFooterSetEvent;
+import net.tidalhq.tidal.event.impl.PlayerListHeaderSetEvent;
+import net.tidalhq.tidal.event.impl.PlayerListUpdateEvent;
 import net.tidalhq.tidal.mixin.PlayerListHudAccessor;
 
 import java.util.Collection;
@@ -15,13 +20,10 @@ public class TablistState {
 
     private final Pattern areaPattern = Pattern.compile("Area:\\s(.+)");
 
-    private String lastHeader;
-    private String lastFooter;
+    private String header;
+    private String footer;
 
-    private String currentHeader;
-    private String currentFooter;
-
-    private Collection<PlayerListEntry> currentPlayerList;
+    private Collection<PlayerListEntry> currentEntries;
 
     private BuffState godPotionState = BuffState.UNKNOWN;
     public BuffState getGodPotionState() { return godPotionState; }
@@ -30,8 +32,10 @@ public class TablistState {
 
     private Location currentLocation = Location.UNKNOWN;
     public Location getCurrentLocation() { return currentLocation; }
-    private Location lastLocation = Location.UNKNOWN;
 
+    private TablistState() {
+        EventBus.getInstance().register(this);
+    }
 
     public static TablistState getInstance() {
         if (instance == null) {
@@ -41,46 +45,31 @@ public class TablistState {
         return instance;
     }
 
-    public void onPlayerListUpdate() {
-        capturePlayerList();
+    @Subscribe
+    public void onPlayerListUpdate(PlayerListUpdateEvent event) {
+        this.currentEntries = event.getEntries();
 
         updateLocation();
     }
 
-    public void onTablistUpdate() {
-        // When an update is triggered from mixin, use accessors to get private fields on PlayerListHud and store results
-        captureHeaderAndFooter();
+    @Subscribe
+    public void onPlayerListHeaderSet(PlayerListHeaderSetEvent event) {
+        this.header = event.getHeaderContent();
 
         updateBuffs();
     }
 
-    private void captureHeaderAndFooter() {
-        if (client.getNetworkHandler() == null) return;
+    @Subscribe
+    public void onPlayerListFooterSet(PlayerListFooterSetEvent event) {
+        this.footer = event.getFooterContent();
 
-
-        PlayerListHudAccessor accessor =
-                (PlayerListHudAccessor) client.inGameHud.getPlayerListHud();
-
-        Text header = accessor.getHeader();
-        Text footer = accessor.getFooter();
-
-        this.lastHeader = this.currentHeader;
-        this.lastFooter = this.currentFooter;
-        this.currentHeader = header != null ? header.getString() : "";
-        this.currentFooter = footer != null ? footer.getString() : "";
-    }
-
-    private void capturePlayerList() {
-        if (client.getNetworkHandler() == null) return;
-
-        this.currentPlayerList = client.getNetworkHandler().getListedPlayerListEntries();
-
+        updateBuffs();
     }
 
     private void updateLocation() {
-        if (this.currentPlayerList == null) return;
+        if (this.currentEntries == null) return;
 
-        for (PlayerListEntry entry : this.currentPlayerList) {
+        for (PlayerListEntry entry : this.currentEntries) {
             if (entry == null) continue;
 
             Text displayName = entry.getDisplayName();
@@ -100,7 +89,6 @@ public class TablistState {
             for (Location loc : Location.values()) {
                 if (!area.equalsIgnoreCase(loc.getName())) continue;
 
-                this.lastLocation = this.currentLocation;
                 this.currentLocation = loc;
                 return;
             }
@@ -109,7 +97,7 @@ public class TablistState {
     private void updateBuffs() {
 
         boolean cookieInactive = false;
-        for (String line : currentFooter.split("\n")) {
+        for (String line : footer.split("\n")) {
             if (line.isEmpty()) continue;
 
             if (line.contains("You have a God Potion active!")) {
@@ -129,9 +117,6 @@ public class TablistState {
         if (!cookieInactive) {
             this.cookieBuffState = BuffState.ACTIVE;
         }
-    }
-
-    private TablistState() {
     }
 
 
