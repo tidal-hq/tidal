@@ -1,5 +1,6 @@
 package net.tidalhq.tidal.macro;
 
+import net.tidalhq.tidal.Crop;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
@@ -37,17 +38,24 @@ public abstract class Macro {
     protected void onSetState(State newState) {
     }
 
-    public void onEnable() {
+    public boolean onEnable() {
         Location target = this.getTargetLocation();
-//        if (!ctx.serverState().isConnectedToHypixel()) return;
         if (!ctx.tablistState().getCurrentLocation().equals(target)) {
             ctx.notifier().info("warping to " + target.getName());
             PlayerUtil.warp(target);
-        };
+        }
+
+        Crop crop = this.getTargetCrop();
+        boolean success = PlayerUtil.setToolForCrop(crop);
+        if (!success) {
+            ctx.notifier().danger("failed to find suitable tool in hotbar for " + crop.name());
+            return false;
+        }
 
         pendingStart = true;
         startDelayTicks = START_DELAY_MIN + (int)(Math.random() * (START_DELAY_MAX - START_DELAY_MIN));
         setState(State.WARPING);
+        return true;
     }
 
     public void onDisable() {
@@ -113,4 +121,5 @@ public abstract class Macro {
     public abstract Location getTargetLocation();
 
     public abstract String getName();
+    public abstract Crop getTargetCrop();
 }

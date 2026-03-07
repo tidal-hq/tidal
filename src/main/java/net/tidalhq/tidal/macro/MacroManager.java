@@ -73,14 +73,14 @@ public class MacroManager {
 
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
-
-        this.enabled = enabled;
-
         if (activeMacro == null) return;
 
         if (enabled) {
-            activeMacro.onEnable();
+            boolean success = activeMacro.onEnable();
+            if (!success) return;
+            this.enabled = true;
         } else {
+            this.enabled = false;
             activeMacro.onDisable();
         }
     }

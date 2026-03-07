@@ -3,12 +3,10 @@ package net.tidalhq.tidal.state;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.Tidal;
+import net.tidalhq.tidal.event.Event;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.PestSpawnedEvent;
-import net.tidalhq.tidal.event.impl.PlayerListFooterSetEvent;
-import net.tidalhq.tidal.event.impl.PlayerListHeaderSetEvent;
-import net.tidalhq.tidal.event.impl.PlayerListUpdateEvent;
+import net.tidalhq.tidal.event.impl.*;
 import net.tidalhq.tidal.util.TablistUtil;
 
 import java.util.Arrays;
@@ -101,6 +99,8 @@ public class TablistState {
                     this.pestsCount = count;
                     if (count > previous) {
                         EventBus.getInstance().post(new PestSpawnedEvent(previous, count));
+                    } else if (count < previous) {
+                        EventBus.getInstance().post(new PestKilledEvent(previous, count));
                     }
                 });
     }

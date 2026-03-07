@@ -1,6 +1,7 @@
 package net.tidalhq.tidal.macro.impl;
 
 import net.minecraft.client.option.GameOptions;
+import net.tidalhq.tidal.Crop;
 import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.macro.MacroContext;
@@ -28,6 +29,9 @@ public class SShapeMushroomSDSMacro extends Macro {
     public Location getTargetLocation() {
         return Location.GARDEN;
     }
+
+    @Override
+    public Crop getTargetCrop() { return Crop.MUSHROOM; }
 
     @Override
     public void updateState() {
@@ -136,8 +140,6 @@ public class SShapeMushroomSDSMacro extends Macro {
                 options.backKey,
                 options.forwardKey
         );
-
-        Tidal.LOGGER.info(getState().toString());
 
         switch (getState()) {
             case SWITCHING_LANE:
