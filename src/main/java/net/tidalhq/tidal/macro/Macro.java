@@ -13,8 +13,14 @@ public abstract class Macro {
     private final static int WARP_DELAY_MIN = 20;
     private final static int WARP_DELAY_MAX = 60;
 
+    private final static int START_DELAY_MIN = 60;
+    private final static int START_DELAY_MAX = 100;
+
     private boolean pendingWarp;
     private int warpDelayTicks;
+
+    private boolean pendingStart;
+    private int startDelayTicks;
 
     private State state;
     public State getState() { return state; }
@@ -38,6 +44,10 @@ public abstract class Macro {
             ctx.notifier().info("warping to " + target.getName());
             PlayerUtil.warp(target);
         };
+
+        pendingStart = true;
+        startDelayTicks = START_DELAY_MIN + (int)(Math.random() * (START_DELAY_MAX - START_DELAY_MIN));
+        setState(State.WARPING);
     }
 
     public void onDisable() {
@@ -49,6 +59,15 @@ public abstract class Macro {
     public void onResume() {}
 
     public void onTick() {
+        if (pendingStart) {
+            startDelayTicks--;
+            if (startDelayTicks <= 0) {
+                pendingStart = false;
+                setState(State.NONE);
+            }
+            return;
+        }
+
         handleWarp();
         updateState();
         invokeState();
