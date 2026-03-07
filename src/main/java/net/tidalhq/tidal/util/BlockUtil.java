@@ -22,21 +22,39 @@ public class BlockUtil {
 
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
+//    public static float getUnitX(float yaw) {
+//        float yaw360 = (yaw % 360 + 360) % 360;
+//        if (yaw360 < 30) return 0;
+//        else if (yaw360 < 150) return -1f;
+//        else if (yaw360 < 210) return 0;
+//        else if (yaw360 < 330) return 1f;
+//        else return 0;
+//    }
+//
+//    public static float getUnitZ(float yaw) {
+//        float yaw360 = (yaw % 360 + 360) % 360;
+//        if (yaw360 < 60) return 1f;
+//        else if (yaw360 < 120) return 0;
+//        else if (yaw360 < 240) return -1f;
+//        else if (yaw360 < 300) return 0;
+//        else return 1f;
+//    }
+
     public static float getUnitX(float yaw) {
         float yaw360 = (yaw % 360 + 360) % 360;
-        if (yaw360 < 30) return 0;
-        else if (yaw360 < 150) return -1f;
-        else if (yaw360 < 210) return 0;
-        else if (yaw360 < 330) return 1f;
+        if (yaw360 < 45) return 0;
+        else if (yaw360 < 135) return -1f;
+        else if (yaw360 < 225) return 0;
+        else if (yaw360 < 315) return 1f;
         else return 0;
     }
 
     public static float getUnitZ(float yaw) {
         float yaw360 = (yaw % 360 + 360) % 360;
-        if (yaw360 < 60) return 1f;
-        else if (yaw360 < 120) return 0;
-        else if (yaw360 < 240) return -1f;
-        else if (yaw360 < 300) return 0;
+        if (yaw360 < 45) return 1f;
+        else if (yaw360 < 135) return 0;
+        else if (yaw360 < 225) return -1f;
+        else if (yaw360 < 315) return 0;
         else return 1f;
     }
 
@@ -50,30 +68,32 @@ public class BlockUtil {
         );
     }
 
-    public static BlockPos getRelativeBlockPos(float x, float y, float z, float yaw, PlayerEntity player) {
-        return BlockPos.ofFloored(
-                player.getX() + getUnitX(yaw) * z + getUnitZ(yaw) * -1 * x,
-                (player.getY() % 1 > 0.7 ? Math.ceil(player.getY()) : player.getY()) + y,
-                player.getZ() + getUnitZ(yaw) * z + getUnitX(yaw) * x
-        );
-    }
-
     public static Block getBlock(BlockPos pos) {
         assert client.world != null;
         return client.world.getBlockState(pos).getBlock();
     }
 
-    public static boolean canWalkThrough(World world, BlockPos blockPos, PlayerEntity player, Direction direction) {
-        var state =  world.getBlockState(blockPos);
+    public static boolean canWalkThrough(BlockPos blockPos, Direction direction) {
+        assert client.world != null;
+        assert client.player != null;
+        World world = client.world;
+        PlayerEntity player = client.player;
+
+        var state = world.getBlockState(blockPos);
         Block block = state.getBlock();
         if (block instanceof SignBlock || block instanceof WallSignBlock) {
             return true;
         }
-        return canWalkThroughBottom(world, blockPos, player, direction) &&
-                canWalkThroughAbove(world, blockPos.up(), player, direction);
+        return canWalkThroughBottom(blockPos, direction) &&
+                canWalkThroughAbove(blockPos.up(), direction);
     }
 
-    private static boolean canWalkThroughBottom(World world, BlockPos blockPos, PlayerEntity player, Direction direction) {
+    private static boolean canWalkThroughBottom(BlockPos blockPos, Direction direction) {
+        assert client.world != null;
+        assert client.player != null;
+        World world = client.world;
+        PlayerEntity player = client.player;
+
         var state = world.getBlockState(blockPos);
         Block block = state.getBlock();
 
@@ -84,7 +104,7 @@ public class BlockUtil {
             return true;
 
         if (block instanceof DoorBlock && direction != null) {
-            return canWalkThroughDoor(world, blockPos, player, direction);
+            return canWalkThroughDoor(blockPos, direction);
         }
 
         if (block instanceof FenceBlock || block instanceof FenceGateBlock)
@@ -122,7 +142,12 @@ public class BlockUtil {
         return state.isAir() || !state.isSolid();
     }
 
-    private static boolean canWalkThroughAbove(World world, BlockPos blockPos, PlayerEntity player, Direction direction) {
+    private static boolean canWalkThroughAbove(BlockPos blockPos, Direction direction) {
+        assert client.world != null;
+        assert client.player != null;
+        World world = client.world;
+        PlayerEntity player = client.player;
+
         var state = world.getBlockState(blockPos);
         Block block = state.getBlock();
 
@@ -130,7 +155,7 @@ public class BlockUtil {
             return false;
 
         if (block instanceof DoorBlock && direction != null) {
-            return canWalkThroughDoor(world, blockPos.down(), player, direction);
+            return canWalkThroughDoor(blockPos.down(), direction);
         }
 
         if (block instanceof FenceBlock || block instanceof FenceGateBlock)
@@ -151,7 +176,12 @@ public class BlockUtil {
         return state.isAir() || !state.isSolid();
     }
 
-    public static boolean canWalkThroughDoor(World world, BlockPos blockPos, PlayerEntity player, Direction direction) {
+    public static boolean canWalkThroughDoor(BlockPos blockPos, Direction direction) {
+        assert client.world != null;
+        assert client.player != null;
+        World world = client.world;
+        PlayerEntity player = client.player;
+
         Block block = world.getBlockState(blockPos).getBlock();
         if (!(block instanceof DoorBlock)) return true;
 
@@ -185,35 +215,44 @@ public class BlockUtil {
         return true;
     }
 
-    public static boolean canWalkForward(World world, PlayerEntity player) {
-        BlockPos forwardPos = getRelativeBlockPos(0, 0, 1, player.getYaw(), player);
-        return canWalkThrough(world, forwardPos, player, Direction.NORTH);
+    public static boolean canWalkForward() {
+        assert client.player != null;
+        BlockPos forwardPos = getRelativeBlockPos(0, 0, 1, client.player.getYaw());
+        return canWalkThrough(forwardPos, Direction.NORTH);
     }
 
-    public static boolean canWalkBackward(World world, PlayerEntity player) {
-        BlockPos backwardPos = getRelativeBlockPos(0, 0, -1, player.getYaw(), player);
-        return canWalkThrough(world, backwardPos, player, Direction.SOUTH);
+    public static boolean canWalkBackward() {
+        assert client.player != null;
+        BlockPos backwardPos = getRelativeBlockPos(0, 0, -1, client.player.getYaw());
+        return canWalkThrough(backwardPos, Direction.SOUTH);
     }
 
-    public static boolean canWalkLeft(World world, PlayerEntity player) {
-        BlockPos leftPos = getRelativeBlockPos(-1, 0, 0, player.getYaw(), player);
-        return canWalkThrough(world, leftPos, player, Direction.WEST);
+    public static boolean canWalkLeft() {
+        assert client.player != null;
+        BlockPos leftPos = getRelativeBlockPos(-1, 0, 0, client.player.getYaw());
+        return canWalkThrough(leftPos, Direction.WEST);
     }
 
-    public static boolean canWalkRight(World world, PlayerEntity player) {
-        BlockPos rightPos = getRelativeBlockPos(1, 0, 0, player.getYaw(), player);
-        return canWalkThrough(world, rightPos, player, Direction.EAST);
+    public static boolean canWalkRight() {
+        assert client.player != null;
+        BlockPos rightPos = getRelativeBlockPos(1, 0, 0, client.player.getYaw());
+        return canWalkThrough(rightPos, Direction.EAST);
     }
 
-    public static boolean isAtFarmStart(World world, PlayerEntity player) {
-        BlockPos behindPos = getRelativeBlockPos(0, -1, -1, player.getYaw(), player);
+    public static boolean isAtFarmStart() {
+        assert client.world != null;
+        assert client.player != null;
+        World world = client.world;
+        PlayerEntity player = client.player;
+
+        BlockPos behindPos = getRelativeBlockPos(0, -1, -1, player.getYaw());
         Block behindBlock = world.getBlockState(behindPos).getBlock();
 
         boolean hasFarmlandBehind = isFarmland(behindBlock);
 
-        BlockPos frontGroundPos = getRelativeBlockPos(0, -1, 1, player.getYaw(), player);
-        BlockPos frontCropPos = getRelativeBlockPos(0, 0, 1, player.getYaw(), player);
-        BlockPos frontAbovePos = getRelativeBlockPos(0, 1, 1, player.getYaw(), player);
+        BlockPos frontGroundPos = getRelativeBlockPos(0, -1, 1, player.getYaw());
+        BlockPos frontCropPos = getRelativeBlockPos(0, 0, 1, player.getYaw());
+        BlockPos frontAbovePos = getRelativeBlockPos(0, 1, 1, player.getYaw());
 
         Block frontGroundBlock = world.getBlockState(frontGroundPos).getBlock();
         Block frontCropBlock = world.getBlockState(frontCropPos).getBlock();
@@ -225,8 +264,8 @@ public class BlockUtil {
                 isCrop(frontAboveBlock) ||
                 frontCropBlock == Blocks.AIR;
 
-        boolean leftReady = isLeftCropReady(world, player);
-        boolean rightReady = isRightCropReady(world, player);
+        boolean leftReady = isLeftCropReady();
+        boolean rightReady = isRightCropReady();
         boolean anySideReady = leftReady || rightReady;
 
         BlockPos standingOnPos = BlockPos.ofFloored(player.getX(), player.getY() - 0.5, player.getZ());
@@ -241,7 +280,7 @@ public class BlockUtil {
         boolean hasWaterBehind = false;
 
         for (int i = -1; i <= 1; i++) {
-            BlockPos checkPos = getRelativeBlockPos(0, -1, i, player.getYaw(), player);
+            BlockPos checkPos = getRelativeBlockPos(0, -1, i, player.getYaw());
             if (world.getBlockState(checkPos).getBlock() == Blocks.WATER ||
                     world.getBlockState(checkPos).getBlock() == Blocks.BUBBLE_COLUMN) {
                 if (i < 0) hasWaterBehind = true;
@@ -278,7 +317,8 @@ public class BlockUtil {
         return block instanceof FarmlandBlock ||
                 block == Blocks.SOUL_SAND ||
                 block == Blocks.SOUL_SOIL ||
-                block == Blocks.MYCELIUM;
+                block == Blocks.MYCELIUM ||
+                block == Blocks.PODZOL;
     }
 
     private static boolean isCrop(Block block) {
@@ -300,7 +340,10 @@ public class BlockUtil {
                 block instanceof CropBlock;
     }
 
-    public static boolean isCropReady(World world, BlockPos pos) {
+    public static boolean isCropReady(BlockPos pos) {
+        assert client.world != null;
+        World world = client.world;
+
         BlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
 
@@ -309,7 +352,7 @@ public class BlockUtil {
         }
 
         if (block == Blocks.MELON_STEM || block == Blocks.PUMPKIN_STEM) {
-            return hasFruitNearby(world, pos, block == Blocks.MELON_STEM);
+            return hasFruitNearby(pos, block == Blocks.MELON_STEM);
         }
 
         if (block instanceof CropBlock crop) {
@@ -325,11 +368,11 @@ public class BlockUtil {
         }
 
         if (block == Blocks.SUGAR_CANE) {
-            return isTopOfSugarCane(world, pos);
+            return isTopOfSugarCane(pos);
         }
 
         if (block == Blocks.CACTUS) {
-            return isTopOfCactus(world, pos);
+            return isTopOfCactus(pos);
         }
 
         if (block == Blocks.SUNFLOWER ||
@@ -344,7 +387,10 @@ public class BlockUtil {
         return false;
     }
 
-    private static boolean isTopOfSugarCane(World world, BlockPos pos) {
+    private static boolean isTopOfSugarCane(BlockPos pos) {
+        assert client.world != null;
+        World world = client.world;
+
         BlockPos belowPos = pos.down();
         BlockState belowState = world.getBlockState(belowPos);
 
@@ -355,7 +401,10 @@ public class BlockUtil {
         return false;
     }
 
-    private static boolean isTopOfCactus(World world, BlockPos pos) {
+    private static boolean isTopOfCactus(BlockPos pos) {
+        assert client.world != null;
+        World world = client.world;
+
         BlockPos belowPos = pos.down();
         BlockState belowState = world.getBlockState(belowPos);
 
@@ -366,7 +415,10 @@ public class BlockUtil {
         return false;
     }
 
-    private static boolean hasFruitNearby(World world, BlockPos stemPos, boolean isMelon) {
+    private static boolean hasFruitNearby(BlockPos stemPos, boolean isMelon) {
+        assert client.world != null;
+        World world = client.world;
+
         Block fruitType = isMelon ? Blocks.MELON : Blocks.PUMPKIN;
 
         for (Direction dir : Direction.Type.HORIZONTAL) {
@@ -378,24 +430,27 @@ public class BlockUtil {
         return false;
     }
 
-    public static boolean isSideCropReady(World world, PlayerEntity player, boolean checkLeft) {
+    public static boolean isSideCropReady(boolean checkLeft) {
+        assert client.player != null;
+        PlayerEntity player = client.player;
+
         int checkDistance = 3;
         float xOffset = checkLeft ? -1 : 1;
 
         for (int i = 1; i <= checkDistance; i++) {
-            BlockPos checkPos = getRelativeBlockPos(xOffset, 0, i, player.getYaw(), player);
+            BlockPos checkPos = getRelativeBlockPos(xOffset, 0, i, player.getYaw());
 
-            if (isCropReady(world, checkPos)) {
+            if (isCropReady(checkPos)) {
                 return true;
             }
 
             BlockPos abovePos = checkPos.up();
-            if (isCropReady(world, abovePos)) {
+            if (isCropReady(abovePos)) {
                 return true;
             }
 
             BlockPos aboveAbovePos = checkPos.up(2);
-            if (isCropReady(world, aboveAbovePos)) {
+            if (isCropReady(aboveAbovePos)) {
                 return true;
             }
         }
@@ -403,11 +458,11 @@ public class BlockUtil {
         return false;
     }
 
-    public static boolean isLeftCropReady(World world, PlayerEntity player) {
-        return isSideCropReady(world, player, true);
+    public static boolean isLeftCropReady() {
+        return isSideCropReady(true);
     }
 
-    public static boolean isRightCropReady(World world, PlayerEntity player) {
-        return isSideCropReady(world, player, false);
+    public static boolean isRightCropReady() {
+        return isSideCropReady(false);
     }
 }

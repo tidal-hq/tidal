@@ -1,8 +1,7 @@
 package net.tidalhq.tidal.macro.impl;
 
 import net.minecraft.client.option.GameOptions;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.world.World;
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.State;
@@ -14,16 +13,10 @@ import net.tidalhq.tidal.util.InputUtil;
 public class SShapeMushroomSDSMacro extends Macro {
     private boolean leftGround = false;
 
-    private final World world;
-    private final PlayerEntity player;
-    private final GameOptions options;
+    private State lastLaneDirection = State.LEFT;
 
     public SShapeMushroomSDSMacro(MacroContext ctx) {
         super(ctx);
-
-        this.world = ctx.client().world;
-        this.player = ctx.client().player;
-        this.options = ctx.client().options;
     }
 
     @Override
@@ -45,24 +38,24 @@ public class SShapeMushroomSDSMacro extends Macro {
 
         switch (getState()) {
             case SWITCHING_LANE:
-                if (!BlockUtil.canWalkBackward(this.world, this.player)) {
+                if (!BlockUtil.canWalkBackward()) {
                     setState(State.NONE);
                 }
                 break;
 
             case DROPPING:
                 if (!leftGround) {
-                    leftGround = !player.isOnGround();
+                    leftGround = !ctx.client().player.isOnGround();
                     break;
                 }
 
-                if (player.isOnGround()) {
+                if (ctx.client().player.isOnGround()) {
                     setState(State.NONE);
                 }
                 break;
 
             case RIGHT:
-                if (BlockUtil.canWalkRight(world, player)) {
+                if (BlockUtil.canWalkRight()) {
                     setState(State.RIGHT);
                 } else {
                     setState(State.DROPPING);
@@ -70,9 +63,9 @@ public class SShapeMushroomSDSMacro extends Macro {
                 break;
 
             case LEFT:
-                if (BlockUtil.canWalkBackward(world, player)) {
+                if (BlockUtil.canWalkBackward()) {
                     setState(State.SWITCHING_LANE);
-                } else if (BlockUtil.canWalkLeft(world, player)) {
+                } else if (BlockUtil.canWalkLeft()) {
                     setState(State.LEFT);
                 } else {
                     setState(State.NONE);
@@ -97,19 +90,34 @@ public class SShapeMushroomSDSMacro extends Macro {
         super.onTick();
     }
     public State calculateDirection() {
-        if (BlockUtil.isLeftCropReady(world, player)) {
+        boolean tryRightFirst = lastLaneDirection == State.LEFT;
+
+        if (tryRightFirst) {
+            if (BlockUtil.isRightCropReady() && BlockUtil.canWalkRight()) {
+                lastLaneDirection = State.RIGHT;
+                return State.RIGHT;
+            }
+            if (BlockUtil.isLeftCropReady() && BlockUtil.canWalkLeft()) {
+                lastLaneDirection = State.LEFT;
+                return State.LEFT;
+            }
+        } else {
+            if (BlockUtil.isLeftCropReady() && BlockUtil.canWalkLeft()) {
+                lastLaneDirection = State.LEFT;
+                return State.LEFT;
+            }
+            if (BlockUtil.isRightCropReady() && BlockUtil.canWalkRight()) {
+                lastLaneDirection = State.RIGHT;
+                return State.RIGHT;
+            }
+        }
+
+        if (BlockUtil.canWalkLeft()) {
+            lastLaneDirection = State.LEFT;
             return State.LEFT;
         }
-
-        if (BlockUtil.isRightCropReady(world, player)) {
-            return State.RIGHT;
-        }
-
-        if (BlockUtil.canWalkLeft(world, player)) {
-            return State.LEFT;
-        }
-
-        if (BlockUtil.canWalkRight(world, player)) {
+        if (BlockUtil.canWalkRight()) {
+            lastLaneDirection = State.RIGHT;
             return State.RIGHT;
         }
 
@@ -120,39 +128,37 @@ public class SShapeMushroomSDSMacro extends Macro {
     public void invokeState() {
         if (getState() == null) return;
 
-//        this.options.leftKey.setPressed(false);
-//        this.options.rightKey.setPressed(false);
-//        this.options.backKey.setPressed(false);
-//        this.options.attackKey.setPressed(false);
+        GameOptions options = ctx.client().options;
+
         InputUtil.reset();
 
         switch (getState()) {
             case SWITCHING_LANE:
                 InputUtil.press(
-                        this.options.leftKey,
-                        this.options.backKey,
-                        this.options.attackKey
+                        options.leftKey,
+                        options.backKey,
+                        options.attackKey
                 );
                 break;
 
             case DROPPING:
                 InputUtil.press(
-                        this.options.rightKey
+                        options.rightKey
                 );
                 break;
 
             case LEFT:
                 InputUtil.press(
-                        this.options.leftKey,
-                        this.options.attackKey
+                        options.leftKey,
+                        options.attackKey
                 );
                 break;
 
             case RIGHT:
                 InputUtil.press(
-                        this.options.rightKey,
-                        this.options.backKey,
-                        this.options.attackKey
+                        options.rightKey,
+                        options.backKey,
+                        options.attackKey
                 );
                 break;
         }

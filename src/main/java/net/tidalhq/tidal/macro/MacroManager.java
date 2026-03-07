@@ -1,11 +1,18 @@
 package net.tidalhq.tidal.macro;
 
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
+import net.tidalhq.tidal.event.impl.ClientTickEvent;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
+import net.tidalhq.tidal.util.InputUtil;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MacroManager {
     private final Map<String, Macro> macros = new LinkedHashMap<>();
@@ -19,6 +26,26 @@ public class MacroManager {
         eventBus.register(this);
 
         register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
+    }
+
+    @Subscribe
+    public void onClientTickEvent(ClientTickEvent event) {
+        if (!enabled || activeMacro == null) return;
+        activeMacro.onTick();
+    }
+
+    @Subscribe
+    public void onClientReceiveGameMessage(ClientReceiveGameMessageEvent event) {
+        if (!enabled || activeMacro == null) return;
+
+        Pattern pattern = Pattern.compile("☠ You (?<reason>.+)");
+        Matcher matcher = pattern.matcher(event.getMessageContent());
+
+        if (matcher.find()) {
+            if (enabled && activeMacro != null) {
+                activeMacro.onDeath();
+            }
+        }
     }
 
     private void register(String id, Macro macro) {

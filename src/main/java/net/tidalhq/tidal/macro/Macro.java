@@ -1,5 +1,6 @@
 package net.tidalhq.tidal.macro;
 
+import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
@@ -32,11 +33,13 @@ public abstract class Macro {
 
     public void onEnable() {
         Location target = this.getTargetLocation();
-        if (!ctx.serverState().isConnectedToHypixel()) return;
+//        if (!ctx.serverState().isConnectedToHypixel()) return;
         if (!ctx.tablistState().getCurrentLocation().equals(target)) PlayerUtil.warp(target);
     }
 
-    public void onDisable() {}
+    public void onDisable() {
+        setState(null);
+    }
 
     public void onPause() {}
     public void onResume() {}
@@ -46,14 +49,15 @@ public abstract class Macro {
         updateState();
         invokeState();
 
-        boolean shouldSneak = !((getState() != State.WARPING && getState() != State.DROPPING) && (ctx.client().player.isOnGround()));
+        boolean isInActiveState = getState() != State.WARPING && getState() != State.DROPPING;
+        boolean shouldSneak = !isInActiveState || !ctx.client().player.isOnGround();
 
-        if (shouldSneak) {
+        if (shouldSneak && !wasSneaking) {
             InputUtil.sneak();
             this.wasSneaking = true;
         }
 
-        if (wasSneaking && !shouldSneak) {
+        if (!shouldSneak && wasSneaking) {
             InputUtil.unSneak();
             this.wasSneaking = false;
         }
@@ -67,6 +71,8 @@ public abstract class Macro {
         if (warpDelayTicks <= 0) {
             pendingWarp = false;
             PlayerUtil.warp(this.getTargetLocation());
+            // Maybe another delay here?
+            setState(State.NONE);
         }
     }
 
