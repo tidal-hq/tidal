@@ -1,12 +1,11 @@
 package net.tidalhq.tidal.macro;
 
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.ClientTickEvent;
+import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
-import net.tidalhq.tidal.util.InputUtil;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,15 +20,22 @@ public class MacroManager {
     private String activeMacroId;
     private boolean enabled;
 
+    private final FeatureManager featureManager;
+
     public MacroManager(MacroContext ctx) {
+        this.featureManager = new FeatureManager(ctx);
         this.eventBus = ctx.eventBus();
         eventBus.register(this);
 
         register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
+
+        featureManager.toggle("pest_warning");
     }
 
     @Subscribe
     public void onClientTickEvent(ClientTickEvent event) {
+        featureManager.onTick();
+
         if (!enabled || activeMacro == null) return;
         activeMacro.onTick();
     }
@@ -50,15 +56,19 @@ public class MacroManager {
 
     private void register(String id, Macro macro) {
         macros.put(id, macro);
-        eventBus.register(macro);
     }
 
     public void setActiveMacro(String id) {
         Macro macro = macros.get(id);
         if (macro == null) return;
 
+        if (activeMacro != null) {
+            eventBus.unregister(activeMacro);
+        }
+
         activeMacro = macro;
         activeMacroId = id;
+        eventBus.register(activeMacro);
     }
 
     public void setEnabled(boolean enabled) {

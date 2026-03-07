@@ -10,6 +10,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
+import net.tidalhq.tidal.Tidal;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,49 +23,77 @@ public class BlockUtil {
 
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
-//    public static float getUnitX(float yaw) {
-//        float yaw360 = (yaw % 360 + 360) % 360;
-//        if (yaw360 < 30) return 0;
-//        else if (yaw360 < 150) return -1f;
-//        else if (yaw360 < 210) return 0;
-//        else if (yaw360 < 330) return 1f;
-//        else return 0;
-//    }
-//
-//    public static float getUnitZ(float yaw) {
-//        float yaw360 = (yaw % 360 + 360) % 360;
-//        if (yaw360 < 60) return 1f;
-//        else if (yaw360 < 120) return 0;
-//        else if (yaw360 < 240) return -1f;
-//        else if (yaw360 < 300) return 0;
-//        else return 1f;
-//    }
-
     public static float getUnitX(float yaw) {
         float yaw360 = (yaw % 360 + 360) % 360;
-        if (yaw360 < 45) return 0;
-        else if (yaw360 < 135) return -1f;
-        else if (yaw360 < 225) return 0;
-        else if (yaw360 < 315) return 1f;
+        if (yaw360 < 30) return 0;
+        else if (yaw360 < 150) return -1f;
+        else if (yaw360 < 210) return 0;
+        else if (yaw360 < 330) return 1f;
         else return 0;
     }
 
     public static float getUnitZ(float yaw) {
         float yaw360 = (yaw % 360 + 360) % 360;
-        if (yaw360 < 45) return 1f;
-        else if (yaw360 < 135) return 0;
-        else if (yaw360 < 225) return -1f;
-        else if (yaw360 < 315) return 0;
+        if (yaw360 < 60) return 1f;
+        else if (yaw360 < 120) return 0;
+        else if (yaw360 < 240) return -1f;
+        else if (yaw360 < 300) return 0;
         else return 1f;
+    }
+
+//    public static float getUnitX(float yaw) {
+//        float yaw360 = (yaw % 360 + 360) % 360;
+//        if (yaw360 < 45) return 0;
+//        else if (yaw360 < 135) return -1f;
+//        else if (yaw360 < 225) return 0;
+//        else if (yaw360 < 315) return 1f;
+//        else return 0;
+//    }
+//
+//    public static float getUnitZ(float yaw) {
+//        float yaw360 = (yaw % 360 + 360) % 360;
+//        if (yaw360 < 45) return 1f;
+//        else if (yaw360 < 135) return 0;
+//        else if (yaw360 < 225) return -1f;
+//        else if (yaw360 < 315) return 0;
+//        else return 1f;
+//    }
+
+//    public static BlockPos getRelativeBlockPos(float x, float y, float z, float yaw) {
+//        assert client.player != null;
+//
+//        return BlockPos.ofFloored(
+//                client.player.getX() + getUnitX(yaw) * z + getUnitZ(yaw) * -1 * x,
+//                (client.player.getY() % 1 > 0.7 ? Math.ceil(client.player.getY()) : client.player.getY()) + y,
+//                client.player.getZ() + getUnitZ(yaw) * z + getUnitX(yaw) * x
+//        );
+//    }
+
+    public static BlockPos getPlayerFeetPos() {
+        assert client.player != null;
+        BlockPos pos = client.player.getBlockPos();
+
+        for (int i = 0; i < 3; i++) {
+            Block block = getBlock(pos.down(i));
+            if (block != Blocks.AIR && block != Blocks.WATER) {
+                return pos.down(i).up();
+            }
+        }
+        return pos; // fallback
     }
 
     public static BlockPos getRelativeBlockPos(float x, float y, float z, float yaw) {
         assert client.player != null;
 
+        Direction facing = Direction.fromHorizontalDegrees(yaw);
+        Direction right = facing.rotateYClockwise();
+
+        BlockPos feetPos = getPlayerFeetPos();
+
         return BlockPos.ofFloored(
-                client.player.getX() + getUnitX(yaw) * z + getUnitZ(yaw) * -1 * x,
-                (client.player.getY() % 1 > 0.7 ? Math.ceil(client.player.getY()) : client.player.getY()) + y,
-                client.player.getZ() + getUnitZ(yaw) * z + getUnitX(yaw) * x
+                client.player.getX() + facing.getOffsetX() * z + right.getOffsetX() * x,
+                feetPos.getY() + y,
+                client.player.getZ() + facing.getOffsetZ() * z + right.getOffsetZ() * x
         );
     }
 

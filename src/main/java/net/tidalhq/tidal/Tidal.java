@@ -21,6 +21,7 @@ import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.MacroManager;
+import net.tidalhq.tidal.notification.Notifier;
 import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
 import org.slf4j.Logger;
@@ -40,11 +41,14 @@ public class Tidal implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		Notifier notifier = new Notifier();
+
 		MacroContext ctx = new MacroContext(
 			MinecraftClient.getInstance(),
 				ServerState.getInstance(),
 				TablistState.getInstance(),
-				EventBus.getInstance()
+				EventBus.getInstance(),
+				notifier
 		);
 		eventBus = EventBus.getInstance();
 

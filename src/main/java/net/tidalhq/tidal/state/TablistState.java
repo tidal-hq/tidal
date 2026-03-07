@@ -1,118 +1,120 @@
 package net.tidalhq.tidal.state;
 
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.PestSpawnedEvent;
 import net.tidalhq.tidal.event.impl.PlayerListFooterSetEvent;
 import net.tidalhq.tidal.event.impl.PlayerListHeaderSetEvent;
 import net.tidalhq.tidal.event.impl.PlayerListUpdateEvent;
+import net.tidalhq.tidal.util.TablistUtil;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.regex.Matcher;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class TablistState {
     private static final TablistState instance = new TablistState();
-    private static final MinecraftClient client = MinecraftClient.getInstance();
 
-    private final Pattern areaPattern = Pattern.compile("Area:\\s(.+)");
+    private static final Pattern AREA_PATTERN       = Pattern.compile("Area:\\s(.+)");
+    private static final Pattern PEST_COUNT_PATTERN = Pattern.compile("Alive:\\s*(\\d+)");
 
-    private String header;
     private String footer;
 
     private Collection<PlayerListEntry> currentEntries;
 
     private BuffState godPotionState = BuffState.UNKNOWN;
     public BuffState getGodPotionState() { return godPotionState; }
-    private BuffState cookieBuffState  = BuffState.UNKNOWN;
+    private BuffState cookieBuffState = BuffState.UNKNOWN;
     public BuffState getCookieBuffState() { return cookieBuffState; }
 
     private Location currentLocation = Location.UNKNOWN;
     public Location getCurrentLocation() { return currentLocation; }
 
+    private int pestsCount = 0;
+    public int getPestsCount() { return pestsCount; }
+
+    private final List<Consumer<String>> entryParsers = List.of(
+            this::updateLocation,
+            this::updatePestCount
+    );
+
     private TablistState() {
         EventBus.getInstance().register(this);
     }
 
-    public static TablistState getInstance() {
-        return instance;
+    public static TablistState getInstance() { return instance; }
+
+    private Stream<String> getEntryStrings() {
+        return currentEntries.stream()
+                .filter(Objects::nonNull)
+                .map(PlayerListEntry::getDisplayName)
+                .filter(Objects::nonNull)
+                .map(Text::getString)
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim);
     }
 
     @Subscribe
     public void onPlayerListUpdate(PlayerListUpdateEvent event) {
         this.currentEntries = event.getEntries();
-
-        updateLocation();
+        if (this.currentEntries == null) return;
+        getEntryStrings().forEach(this::updateFromEntry);
     }
 
     @Subscribe
     public void onPlayerListHeaderSet(PlayerListHeaderSetEvent event) {
-        this.header = event.getHeaderContent();
-
-        updateBuffs();
+        updateFromHeader(TablistUtil.splitLines(event.getHeaderContent()));
     }
 
     @Subscribe
     public void onPlayerListFooterSet(PlayerListFooterSetEvent event) {
         this.footer = event.getFooterContent();
-
-        updateBuffs();
+        updateFromFooter(TablistUtil.splitLines(footer));
     }
 
-    private void updateLocation() {
-        if (this.currentEntries == null) return;
-
-        for (PlayerListEntry entry : this.currentEntries) {
-            if (entry == null) continue;
-
-            Text displayName = entry.getDisplayName();
-            if (displayName == null) continue;
-
-            String entryString = displayName.getString();
-            if (entryString == null) continue;
-
-            entryString = entryString.trim();
-            if (entryString.isEmpty()) continue;
-
-            Matcher matcher = areaPattern.matcher(entryString);
-            if (!matcher.find()) continue;
-
-            String area = matcher.group(1).trim();
-
-            for (Location loc : Location.values()) {
-                if (!area.equalsIgnoreCase(loc.getName())) continue;
-
-                this.currentLocation = loc;
-                return;
-            }
-        }
-    }
-    private void updateBuffs() {
-
-        boolean cookieInactive = false;
-        for (String line : footer.split("\n")) {
-            if (line.isEmpty()) continue;
-
-            if (line.contains("You have a God Potion active!")) {
-                this.godPotionState = BuffState.ACTIVE;
-
-                // TODO: auto god pot
-                break;
-            }
-
-            if (line.contains("Not Active")) {
-                cookieInactive = true;
-                this.cookieBuffState = BuffState.NOT_ACTIVE;
-                break;
-            }
-        }
-
-        if (!cookieInactive) {
-            this.cookieBuffState = BuffState.ACTIVE;
-        }
+    private void updateFromEntry(String entry) {
+        entryParsers.forEach(parser -> parser.accept(entry));
     }
 
+    private void updateLocation(String entry) {
+        TablistUtil.extract(entry, AREA_PATTERN)
+                .flatMap(area -> Arrays.stream(Location.values())
+                        .filter(loc -> loc.getName().equalsIgnoreCase(area))
+                        .findFirst())
+                .ifPresent(loc -> this.currentLocation = loc);
+    }
 
+    private void updatePestCount(String entry) {
+        if (!entry.contains("Alive:")) return;
+
+        TablistUtil.extract(entry, PEST_COUNT_PATTERN)
+                .map(Integer::parseInt)
+                .ifPresent(count -> {
+                    int previous = this.pestsCount;
+                    this.pestsCount = count;
+                    if (count > previous) {
+                        EventBus.getInstance().post(new PestSpawnedEvent(previous, count));
+                    }
+                });
+    }
+
+    private void updateFromHeader(String[] lines) {
+    }
+
+    private void updateFromFooter(String[] lines) {
+        this.godPotionState = TablistUtil.findLine(lines, "You have a God Potion active!")
+                .map(x -> BuffState.ACTIVE)
+                .orElse(BuffState.UNKNOWN);
+
+        this.cookieBuffState = TablistUtil.findLine(lines, "Not Active")
+                .map(x -> BuffState.NOT_ACTIVE)
+                .orElse(BuffState.ACTIVE);
+    }
 }

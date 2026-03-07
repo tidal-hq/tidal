@@ -34,11 +34,15 @@ public abstract class Macro {
     public void onEnable() {
         Location target = this.getTargetLocation();
 //        if (!ctx.serverState().isConnectedToHypixel()) return;
-        if (!ctx.tablistState().getCurrentLocation().equals(target)) PlayerUtil.warp(target);
+        if (!ctx.tablistState().getCurrentLocation().equals(target)) {
+            ctx.notifier().info("warping to " + target.getName());
+            PlayerUtil.warp(target);
+        };
     }
 
     public void onDisable() {
         setState(null);
+        InputUtil.reset();
     }
 
     public void onPause() {}
@@ -49,8 +53,9 @@ public abstract class Macro {
         updateState();
         invokeState();
 
-        boolean isInActiveState = getState() != State.WARPING && getState() != State.DROPPING;
-        boolean shouldSneak = !isInActiveState || !ctx.client().player.isOnGround();
+        boolean shouldSneak = getState() != State.WARPING
+                && getState() != State.DROPPING
+                && !ctx.client().player.isOnGround();
 
         if (shouldSneak && !wasSneaking) {
             InputUtil.sneak();

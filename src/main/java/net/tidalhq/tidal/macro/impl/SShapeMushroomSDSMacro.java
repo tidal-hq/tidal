@@ -130,7 +130,14 @@ public class SShapeMushroomSDSMacro extends Macro {
 
         GameOptions options = ctx.client().options;
 
-        InputUtil.reset();
+        InputUtil.release(
+                options.leftKey,
+                options.rightKey,
+                options.backKey,
+                options.forwardKey
+        );
+
+        Tidal.LOGGER.info(getState().toString());
 
         switch (getState()) {
             case SWITCHING_LANE:
@@ -142,9 +149,8 @@ public class SShapeMushroomSDSMacro extends Macro {
                 break;
 
             case DROPPING:
-                InputUtil.press(
-                        options.rightKey
-                );
+                InputUtil.release(options.attackKey);
+                InputUtil.press(options.rightKey);
                 break;
 
             case LEFT:
@@ -160,6 +166,11 @@ public class SShapeMushroomSDSMacro extends Macro {
                         options.backKey,
                         options.attackKey
                 );
+                break;
+
+            case NONE:
+            case WARPING:
+                InputUtil.release(options.attackKey);
                 break;
         }
     }
