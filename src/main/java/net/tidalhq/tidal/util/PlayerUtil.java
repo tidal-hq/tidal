@@ -26,21 +26,14 @@ public class PlayerUtil {
             ItemStack stack = client.player.getInventory().getStack(slot);
             if (stack == null || stack.isEmpty()) continue;
 
-            Tidal.LOGGER.info(stack.toString());
-
             NbtComponent data = stack.get(DataComponentTypes.CUSTOM_DATA);
             if (data == null) continue;
 
-            Tidal.LOGGER.info(data.toString());
-
             NbtCompound nbt = data.copyNbt();
-            Tidal.LOGGER.info(nbt.toString());
             if (!nbt.contains("id")) continue;
 
             String id = nbt.getString("id", "");
             if (id.isEmpty()) continue;
-
-            Tidal.LOGGER.info(id);
 
             switch (crop) {
                 case NETHER_WART:
@@ -89,6 +82,32 @@ public class PlayerUtil {
         if (id == -1) return false;
 
         client.player.getInventory().setSelectedSlot(id);
+
+        return true;
+    }
+
+    public static int vacuumIndex() {
+        for (int slot = 0; slot < 9; slot++) {
+            ItemStack stack = client.player.getInventory().getStack(slot);
+            if (stack == null || stack.isEmpty()) return -1;
+
+            NbtComponent data = stack.get(DataComponentTypes.CUSTOM_DATA);
+            if (data == null) continue;
+            NbtCompound nbt = data.copyNbt();
+
+            if (!nbt.toString().toLowerCase().contains("vacuum")) continue;
+
+            return slot;
+        }
+
+        return -1;
+    }
+
+    public static boolean swapToVacuum() {
+        int index = vacuumIndex();
+        if (index == -1) return false;
+
+        client.player.getInventory().setSelectedSlot(index);
 
         return true;
     }

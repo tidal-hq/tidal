@@ -20,6 +20,9 @@ public class PestWarningFeature extends Feature {
     @Override public String getDisplayName() { return "Pest Warning"; }
     @Override public Category getCategory() { return Category.FARMING; }
 
+    @Override public boolean shouldPauseMacroExecution() { return false; }
+    @Override public boolean shouldStartAtMacroStart() { return true; }
+
     @Subscribe
     public void onPestCountIncreased(PestSpawnedEvent event) {
         if (!isEnabled()) return;

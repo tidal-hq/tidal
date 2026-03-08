@@ -14,10 +14,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.event.EventBus;
-import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
-import net.tidalhq.tidal.event.impl.ClientTickEvent;
-import net.tidalhq.tidal.event.impl.ServerConnectEvent;
-import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
+import net.tidalhq.tidal.event.impl.*;
+import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.MacroManager;
@@ -42,20 +40,22 @@ public class Tidal implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Notifier notifier = new Notifier();
+		eventBus = EventBus.getInstance();
+		FeatureManager featureManager = new FeatureManager(eventBus);
 
 		MacroContext ctx = new MacroContext(
-			MinecraftClient.getInstance(),
+				MinecraftClient.getInstance(),
 				ServerState.getInstance(),
 				TablistState.getInstance(),
-				EventBus.getInstance(),
-				notifier
+				eventBus,
+				notifier,
+				featureManager
 		);
-		eventBus = EventBus.getInstance();
 
+		featureManager.registerFeatures(ctx);
 		macroManager = new MacroManager(ctx);
 
 		eventBus.register(this);
-
 		registerCommands();
 		registerEvents();
 	}
@@ -76,6 +76,7 @@ public class Tidal implements ClientModInitializer {
 		ClientReceiveMessageEvents.GAME.register((message, signedMessage) -> {
 			eventBus.post(new ClientReceiveGameMessageEvent(message.getString()));
 		});
+
 	}
 
 	private void registerCommands() {
@@ -108,6 +109,15 @@ public class Tidal implements ClientModInitializer {
 										context.getSource().sendFeedback(Text.literal("Selected macro: " + name));
 										return 1;
 									}))));
+		});
+
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+			dispatcher.register(ClientCommandManager.literal("fire")
+			.then(ClientCommandManager.literal("pest_spawn").executes(commandContext -> {
+				EventBus.getInstance().post(new PestSpawnedEvent(0, 1));
+
+				return 1;
+			})));
 		});
 	}
 }

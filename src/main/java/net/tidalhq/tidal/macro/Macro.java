@@ -1,7 +1,6 @@
 package net.tidalhq.tidal.macro;
 
 import net.tidalhq.tidal.Crop;
-import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
@@ -10,12 +9,13 @@ public abstract class Macro {
     protected final MacroContext ctx;
 
     private boolean wasSneaking;
+    private boolean paused;
 
-    private final static int WARP_DELAY_MIN = 20;
-    private final static int WARP_DELAY_MAX = 60;
+    private static final int WARP_DELAY_MIN = 20;
+    private static final int WARP_DELAY_MAX = 60;
 
-    private final static int START_DELAY_MIN = 60;
-    private final static int START_DELAY_MAX = 100;
+    private static final int START_DELAY_MIN = 60;
+    private static final int START_DELAY_MAX = 100;
 
     private boolean pendingWarp;
     private int warpDelayTicks;
@@ -24,10 +24,10 @@ public abstract class Macro {
     private int startDelayTicks;
 
     private State state;
+
     public State getState() { return state; }
     public void setState(State state) {
         this.state = state;
-
         onSetState(state);
     }
 
@@ -35,8 +35,7 @@ public abstract class Macro {
         this.ctx = ctx;
     }
 
-    protected void onSetState(State newState) {
-    }
+    protected void onSetState(State newState) {}
 
     public boolean onEnable() {
         Location target = this.getTargetLocation();
@@ -46,11 +45,7 @@ public abstract class Macro {
         }
 
         Crop crop = this.getTargetCrop();
-        boolean success = PlayerUtil.setToolForCrop(crop);
-        if (!success) {
-            ctx.notifier().danger("failed to find suitable tool in hotbar for " + crop.name());
-            return false;
-        }
+        PlayerUtil.setToolForCrop(crop);
 
         pendingStart = true;
         startDelayTicks = START_DELAY_MIN + (int)(Math.random() * (START_DELAY_MAX - START_DELAY_MIN));
@@ -59,14 +54,30 @@ public abstract class Macro {
     }
 
     public void onDisable() {
+        paused = false;
         setState(null);
         InputUtil.reset();
     }
 
-    public void onPause() {}
-    public void onResume() {}
+    public void pause() {
+        paused = true;
+        InputUtil.reset();
+        onPause();
+    }
+
+    public void resume() {
+        paused = false;
+        onResume();
+    }
+
+    public boolean isPaused() { return paused; }
+
+    protected void onPause() {}
+    protected void onResume() {}
 
     public void onTick() {
+        if (paused) return;
+
         if (pendingStart) {
             startDelayTicks--;
             if (startDelayTicks <= 0) {
@@ -103,7 +114,6 @@ public abstract class Macro {
         if (warpDelayTicks <= 0) {
             pendingWarp = false;
             PlayerUtil.warp(this.getTargetLocation());
-            // Maybe another delay here?
             setState(State.NONE);
         }
     }
@@ -119,7 +129,6 @@ public abstract class Macro {
     public abstract void updateState();
     public abstract void invokeState();
     public abstract Location getTargetLocation();
-
     public abstract String getName();
     public abstract Crop getTargetCrop();
 }

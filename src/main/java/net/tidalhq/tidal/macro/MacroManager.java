@@ -4,6 +4,7 @@ import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.ClientTickEvent;
+import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 
@@ -16,25 +17,42 @@ import java.util.regex.Pattern;
 public class MacroManager {
     private final Map<String, Macro> macros = new LinkedHashMap<>();
     private final EventBus eventBus;
+    private final MacroContext ctx;
     private Macro activeMacro;
     private String activeMacroId;
     private boolean enabled;
 
-    private final FeatureManager featureManager;
-
     public MacroManager(MacroContext ctx) {
-        this.featureManager = new FeatureManager(ctx);
+        this.ctx = ctx;
         this.eventBus = ctx.eventBus();
         eventBus.register(this);
 
-        register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
+        ctx.featureManager().setMacroCallback(new FeatureManager.MacroLifecycleCallback() {
+            @Override
+            public void onMacroPauseRequested(Feature requester) {
+                if (activeMacro != null) activeMacro.pause();
+            }
 
-        featureManager.toggle("pest_warning");
+            @Override
+            public void onMacroResumeRequested(Feature requester) {
+                if (activeMacro != null) activeMacro.resume();
+            }
+
+            @Override
+            public void onMacroStopRequested() {
+                setEnabled(false);
+            }
+        });
+
+        ctx.featureManager().toggleEnabled("pest_warning");
+        ctx.featureManager().toggleEnabled("pest_remover");
+
+        register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
     }
 
     @Subscribe
     public void onClientTickEvent(ClientTickEvent event) {
-        featureManager.onTick();
+        ctx.featureManager().onTick();
 
         if (!enabled || activeMacro == null) return;
         activeMacro.onTick();
@@ -48,9 +66,7 @@ public class MacroManager {
         Matcher matcher = pattern.matcher(event.getMessageContent());
 
         if (matcher.find()) {
-            if (enabled && activeMacro != null) {
-                activeMacro.onDeath();
-            }
+            activeMacro.onDeath();
         }
     }
 
@@ -79,8 +95,10 @@ public class MacroManager {
             boolean success = activeMacro.onEnable();
             if (!success) return;
             this.enabled = true;
+            ctx.featureManager().onMacroStart();
         } else {
             this.enabled = false;
+            ctx.featureManager().onMacroStop();
             activeMacro.onDisable();
         }
     }
