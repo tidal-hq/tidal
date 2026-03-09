@@ -20,6 +20,8 @@ public abstract class Feature {
 
     public void onTick() {}
 
+    public void onNavigationTick() {}
+
     public abstract String getId();
     public abstract String getDisplayName();
     public abstract Category getCategory();

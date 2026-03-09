@@ -16,9 +16,10 @@ public class FeatureManager {
     }
 
     public boolean toggle(String id) {
-        return registry.get(id)
-                .map(f -> setEnabled(f, !f.isEnabled()))
-                .orElse(false);
+        Optional<Feature> feature = registry.get(id);
+        if (feature.isEmpty()) return false;
+        Feature f = feature.get();
+        return setEnabled(f, !f.isEnabled());
     }
 
     public boolean setEnabled(String id, boolean enabled) {
@@ -38,22 +39,25 @@ public class FeatureManager {
     public void onTick() {
         registry.all().stream()
                 .filter(Feature::isEnabled)
-                .forEach(Feature::onTick);
+                .forEach(f -> { f.onTick(); f.onNavigationTick(); });
     }
 
     public void tickWithMacro(Macro macro) {
         registry.all().stream()
                 .filter(Feature::isEnabled)
-                .forEach(Feature::onTick);
+                .forEach(f -> { f.onTick(); f.onNavigationTick(); });
 
         List<MacroLifecycleHook> hooks = enabledHooks();
-        boolean anyWantsPause = hooks.stream().anyMatch(h -> h.shouldPauseMacro(macro));
 
-        if (anyWantsPause) {
+        List<MacroLifecycleHook> pausingHooks = hooks.stream()
+                .filter(h -> h.shouldPauseMacro(macro))
+                .toList();
+
+        if (!pausingHooks.isEmpty()) {
             if (!macroPaused) {
                 macroPaused = true;
                 InputUtil.reset();
-                hooks.forEach(h -> h.onMacroPaused(macro));
+                pausingHooks.forEach(h -> h.onMacroPaused(macro));
             }
             return;
         }
@@ -67,13 +71,16 @@ public class FeatureManager {
     }
 
     public boolean runPreMacroChecks(Macro macro) {
-        boolean allPassed = true;
         for (MacroLifecycleHook hook : enabledHooks()) {
             if (!hook.onBeforeMacroStart(macro)) {
-                allPassed = false;
+                return false;
             }
         }
-        return allPassed;
+        return true;
+    }
+
+    public void resetMacroPaused() {
+        macroPaused = false;
     }
 
     public boolean isMacroPaused() { return macroPaused; }

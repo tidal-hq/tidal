@@ -58,6 +58,10 @@ public class MacroManager {
         if (macro == null) return;
 
         if (activeMacro != null) {
+            if (enabled) {
+                activeMacro.onDisable();
+            }
+            featureManager.resetMacroPaused();
             eventBus.unregister(activeMacro);
         }
 
@@ -75,11 +79,11 @@ public class MacroManager {
             if (!started) return;
         } else {
             activeMacro.onDisable();
+            featureManager.resetMacroPaused();
         }
 
         this.enabled = enabled;
     }
-
 
     public String getActiveMacroId()       { return activeMacroId; }
     public Macro getActiveMacro()          { return activeMacro; }
