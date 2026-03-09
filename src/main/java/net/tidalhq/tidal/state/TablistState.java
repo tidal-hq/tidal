@@ -2,8 +2,6 @@ package net.tidalhq.tidal.state;
 
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
-import net.tidalhq.tidal.Tidal;
-import net.tidalhq.tidal.event.Event;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.*;
@@ -18,38 +16,50 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public class TablistState {
-    private static final TablistState instance = new TablistState();
 
     private static final Pattern AREA_PATTERN       = Pattern.compile("Area:\\s(.+)");
     private static final Pattern PEST_COUNT_PATTERN = Pattern.compile("Alive:\\s*(\\d+)");
 
-    private String footer;
-
     private Collection<PlayerListEntry> currentEntries;
 
     private BuffState godPotionState = BuffState.UNKNOWN;
-    public BuffState getGodPotionState() { return godPotionState; }
     private BuffState cookieBuffState = BuffState.UNKNOWN;
-    public BuffState getCookieBuffState() { return cookieBuffState; }
 
     private Location currentLocation = Location.UNKNOWN;
-    public Location getCurrentLocation() { return currentLocation; }
-
     private int pestsCount = 0;
-    public int getPestsCount() { return pestsCount; }
 
     private final List<Consumer<String>> entryParsers = List.of(
-            this::updateLocation,
-            this::updatePestCount
+            this::parseLocation,
+            this::parsePestCount
     );
 
-    private TablistState() {
-        EventBus.getInstance().register(this);
+    public TablistState(EventBus eventBus) {
+        eventBus.register(this);
     }
 
-    public static TablistState getInstance() { return instance; }
+    public BuffState getGodPotionState()  { return godPotionState; }
+    public BuffState getCookieBuffState() { return cookieBuffState; }
+    public Location getCurrentLocation()  { return currentLocation; }
+    public int getPestsCount()            { return pestsCount; }
 
-    private Stream<String> getEntryStrings() {
+    @Subscribe
+    public void onPlayerListUpdate(PlayerListUpdateEvent event) {
+        this.currentEntries = event.getEntries();
+        if (currentEntries == null) return;
+        streamEntries().forEach(this::parseEntry);
+    }
+
+    @Subscribe
+    public void onPlayerListHeaderSet(PlayerListHeaderSetEvent event) {
+        parseHeader(TablistUtil.splitLines(event.getHeaderContent()));
+    }
+
+    @Subscribe
+    public void onPlayerListFooterSet(PlayerListFooterSetEvent event) {
+        parseFooter(TablistUtil.splitLines(event.getFooterContent()));
+    }
+
+    private Stream<String> streamEntries() {
         return currentEntries.stream()
                 .filter(Objects::nonNull)
                 .map(PlayerListEntry::getDisplayName)
@@ -59,29 +69,11 @@ public class TablistState {
                 .map(String::trim);
     }
 
-    @Subscribe
-    public void onPlayerListUpdate(PlayerListUpdateEvent event) {
-        this.currentEntries = event.getEntries();
-        if (this.currentEntries == null) return;
-        getEntryStrings().forEach(this::updateFromEntry);
+    private void parseEntry(String entry) {
+        entryParsers.forEach(p -> p.accept(entry));
     }
 
-    @Subscribe
-    public void onPlayerListHeaderSet(PlayerListHeaderSetEvent event) {
-        updateFromHeader(TablistUtil.splitLines(event.getHeaderContent()));
-    }
-
-    @Subscribe
-    public void onPlayerListFooterSet(PlayerListFooterSetEvent event) {
-        this.footer = event.getFooterContent();
-        updateFromFooter(TablistUtil.splitLines(footer));
-    }
-
-    private void updateFromEntry(String entry) {
-        entryParsers.forEach(parser -> parser.accept(entry));
-    }
-
-    private void updateLocation(String entry) {
+    private void parseLocation(String entry) {
         TablistUtil.extract(entry, AREA_PATTERN)
                 .flatMap(area -> Arrays.stream(Location.values())
                         .filter(loc -> loc.getName().equalsIgnoreCase(area))
@@ -89,7 +81,7 @@ public class TablistState {
                 .ifPresent(loc -> this.currentLocation = loc);
     }
 
-    private void updatePestCount(String entry) {
+    private void parsePestCount(String entry) {
         if (!entry.contains("Alive:")) return;
 
         TablistUtil.extract(entry, PEST_COUNT_PATTERN)
@@ -97,24 +89,23 @@ public class TablistState {
                 .ifPresent(count -> {
                     int previous = this.pestsCount;
                     this.pestsCount = count;
-                    if (count > previous) {
-                        EventBus.getInstance().post(new PestSpawnedEvent(previous, count));
-                    } else if (count < previous) {
-                        EventBus.getInstance().post(new PestKilledEvent(previous, count));
-                    }
                 });
     }
 
-    private void updateFromHeader(String[] lines) {
+    private void parseHeader(String[] lines) {
     }
 
-    private void updateFromFooter(String[] lines) {
-        this.godPotionState = TablistUtil.findLine(lines, "You have a God Potion active!")
+    private void parseFooter(String[] lines) {
+        godPotionState = TablistUtil.findLine(lines, "You have a God Potion active!")
                 .map(x -> BuffState.ACTIVE)
                 .orElse(BuffState.UNKNOWN);
 
-        this.cookieBuffState = TablistUtil.findLine(lines, "Not Active")
-                .map(x -> BuffState.NOT_ACTIVE)
-                .orElse(BuffState.ACTIVE);
+        if (TablistUtil.findLine(lines, "Cookie Buff").isPresent()) {
+            cookieBuffState = TablistUtil.findLine(lines, "Not Active")
+                    .map(x -> BuffState.NOT_ACTIVE)
+                    .orElse(BuffState.ACTIVE);
+        } else {
+            cookieBuffState = BuffState.UNKNOWN;
+        }
     }
 }

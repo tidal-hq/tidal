@@ -5,6 +5,7 @@ import net.tidalhq.tidal.Category;
 import java.util.*;
 
 public class FeatureRegistry {
+
     private final Map<String, Feature> features = new LinkedHashMap<>();
 
     public void register(Feature feature) {

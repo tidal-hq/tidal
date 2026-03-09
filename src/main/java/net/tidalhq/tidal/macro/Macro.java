@@ -1,125 +1,132 @@
 package net.tidalhq.tidal.macro;
 
 import net.tidalhq.tidal.Crop;
-import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
 public abstract class Macro {
+
     protected final MacroContext ctx;
+
+    private static final int WARP_DELAY_MIN  = 20;
+    private static final int WARP_DELAY_MAX  = 60;
+    private static final int START_DELAY_MIN = 60;
+    private static final int START_DELAY_MAX = 100;
+
+    private MacroPhase currentPhase;
+
+    private boolean pendingWarp;
+    private int     warpCountdown;
+
+    private boolean pendingStart;
+    private int     startCountdown;
 
     private boolean wasSneaking;
 
-    private final static int WARP_DELAY_MIN = 20;
-    private final static int WARP_DELAY_MAX = 60;
-
-    private final static int START_DELAY_MIN = 60;
-    private final static int START_DELAY_MAX = 100;
-
-    private boolean pendingWarp;
-    private int warpDelayTicks;
-
-    private boolean pendingStart;
-    private int startDelayTicks;
-
-    private State state;
-    public State getState() { return state; }
-    public void setState(State state) {
-        this.state = state;
-
-        onSetState(state);
-    }
 
     protected Macro(MacroContext ctx) {
         this.ctx = ctx;
     }
 
-    protected void onSetState(State newState) {
+    public MacroPhase getPhase() {
+        return currentPhase;
     }
 
+    protected final void setPhase(MacroPhase newPhase) {
+        MacroPhase previous = this.currentPhase;
+        this.currentPhase = newPhase;
+        onPhaseChanged(previous, newPhase);
+    }
+
+    protected void onPhaseChanged(MacroPhase previous, MacroPhase next) {}
+
     public boolean onEnable() {
-        Location target = this.getTargetLocation();
-        if (!ctx.tablistState().getCurrentLocation().equals(target)) {
-            ctx.notifier().info("warping to " + target.getName());
+        Location target = getTargetLocation();
+        if (!ctx.gameState().getCurrentLocation().equals(target)) {
+            ctx.notifier().info("Warping to " + target.getName());
             PlayerUtil.warp(target);
         }
 
-        Crop crop = this.getTargetCrop();
-        boolean success = PlayerUtil.setToolForCrop(crop);
-        if (!success) {
-            ctx.notifier().danger("failed to find suitable tool in hotbar for " + crop.name());
+        Crop crop = getTargetCrop();
+        if (!PlayerUtil.setToolForCrop(crop)) {
+            ctx.notifier().danger("No suitable tool in hotbar for " + crop.name());
             return false;
         }
 
-        pendingStart = true;
-        startDelayTicks = START_DELAY_MIN + (int)(Math.random() * (START_DELAY_MAX - START_DELAY_MIN));
-        setState(State.WARPING);
+        scheduleStart();
+        setPhase(CorePhase.WARPING);
         return true;
     }
 
     public void onDisable() {
-        setState(null);
+        setPhase(null);
         InputUtil.reset();
     }
 
-    public void onPause() {}
-    public void onResume() {}
+    public void onDeath() {
+        pendingWarp   = true;
+        warpCountdown = randomBetween(WARP_DELAY_MIN, WARP_DELAY_MAX);
+        setPhase(CorePhase.WARPING);
+        InputUtil.reset();
+    }
 
     public void onTick() {
         if (pendingStart) {
-            startDelayTicks--;
-            if (startDelayTicks <= 0) {
+            if (--startCountdown <= 0) {
                 pendingStart = false;
-                setState(State.NONE);
+                setPhase(CorePhase.IDLE);
             }
             return;
         }
 
-        handleWarp();
-        updateState();
-        invokeState();
+        tickWarp();
+        updatePhase();
+        applyInputs();
+        tickSneak();
+    }
 
-        boolean shouldSneak = getState() != State.WARPING
-                && getState() != State.DROPPING
-                && !ctx.client().player.isOnGround();
+
+    private void tickWarp() {
+        if (!pendingWarp) return;
+        if (--warpCountdown <= 0) {
+            pendingWarp = false;
+            PlayerUtil.warp(getTargetLocation());
+            setPhase(CorePhase.IDLE);
+        }
+    }
+
+    private void tickSneak() {
+        MacroPhase phase = currentPhase;
+        boolean shouldSneak = phase != null
+                && !phase.isIdle()
+                && !ctx.world().isPlayerOnGround();
 
         if (shouldSneak && !wasSneaking) {
             InputUtil.sneak();
-            this.wasSneaking = true;
-        }
-
-        if (!shouldSneak && wasSneaking) {
+            wasSneaking = true;
+        } else if (!shouldSneak && wasSneaking) {
             InputUtil.unSneak();
-            this.wasSneaking = false;
+            wasSneaking = false;
         }
     }
 
-    public void handleWarp() {
-        if (!pendingWarp) return;
-
-        warpDelayTicks--;
-
-        if (warpDelayTicks <= 0) {
-            pendingWarp = false;
-            PlayerUtil.warp(this.getTargetLocation());
-            // Maybe another delay here?
-            setState(State.NONE);
-        }
+    private void scheduleStart() {
+        pendingStart   = true;
+        startCountdown = randomBetween(START_DELAY_MIN, START_DELAY_MAX);
     }
 
-    public void onDeath() {
-        this.pendingWarp = true;
-        this.warpDelayTicks = WARP_DELAY_MIN + (int)(Math.random() * (WARP_DELAY_MAX - WARP_DELAY_MIN));
-
-        setState(State.WARPING);
-        InputUtil.reset();
+    private static int randomBetween(int min, int max) {
+        return min + (int) (Math.random() * (max - min));
     }
 
-    public abstract void updateState();
-    public abstract void invokeState();
+    public abstract void updatePhase();
+
+    public abstract void applyInputs();
+
     public abstract Location getTargetLocation();
 
     public abstract String getName();
+
     public abstract Crop getTargetCrop();
 }
