@@ -31,6 +31,9 @@ public class PestWarningFeature extends Feature implements MacroLifecycleHook {
         ctx.eventBus().unregister(this);
     }
 
+    @Override public boolean shouldPauseMacroExecution() { return false; }
+    @Override public boolean shouldStartAtMacroStart() { return true; }
+
     @Subscribe
     public void onPestSpawned(PestSpawnedEvent event) {
         for (int threshold : WARN_THRESHOLDS) {
