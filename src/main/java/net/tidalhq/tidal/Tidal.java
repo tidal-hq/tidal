@@ -24,6 +24,7 @@ import net.tidalhq.tidal.feature.impl.PestWarningFeature;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.MacroManager;
+import net.tidalhq.tidal.macro.impl.SShapeMelonSDSMacro;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 import net.tidalhq.tidal.notification.Notifier;
 import net.tidalhq.tidal.pathfind.PathfindingSession;
@@ -76,6 +77,7 @@ public class Tidal implements ClientModInitializer {
 		MacroContext ctx = new MacroContext(worldAccessor, gameState, eventBus, notifier);
 		macroManager = new MacroManager(ctx, featureManager);
 		macroManager.register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
+		macroManager.register("ssdsmelon", new SShapeMelonSDSMacro(ctx));
 
 		registerFabricEvents(eventBus, client);
 		registerCommands();
