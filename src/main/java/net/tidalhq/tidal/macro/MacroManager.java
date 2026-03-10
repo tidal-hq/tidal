@@ -3,7 +3,7 @@ package net.tidalhq.tidal.macro;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
-import net.tidalhq.tidal.event.impl.ClientTickEvent;
+import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
 import net.tidalhq.tidal.feature.FeatureManager;
 
 import java.util.Collections;
@@ -12,8 +12,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * MacroManager class responsible for high level selection and execution of a {@link Macro}.
+ * Has a built-in registry instead of a separate class like {@link net.tidalhq.tidal.feature.FeatureRegistry}, who knows why.
+ * Responsible for registration to the {@link EventBus}, subscriptions are passed on to child {@link Macro} and {@link FeatureManager}.
+ */
 public class MacroManager {
-
     private static final Pattern DEATH_PATTERN = Pattern.compile("☠ You (?<reason>.+)");
 
     private final Map<String, Macro> macros = new LinkedHashMap<>();
@@ -30,16 +34,22 @@ public class MacroManager {
         eventBus.register(this);
     }
 
+    /**
+     * Registers a macro to the manager, allowing it to be enabled and disabled
+     *
+     * @param id string identifier for the macro, think 'mushroom_macro'
+     * @param macro the macro object to register under the given id
+     */
     public void register(String id, Macro macro) {
         macros.put(id, macro);
     }
 
     @Subscribe
-    public void onClientTick(ClientTickEvent event) {
+    public void onClientEndTickEvent(ClientEndTickEvent event) {
         if (enabled && activeMacro != null) {
             featureManager.tickWithMacro(activeMacro);
         } else {
-            featureManager.onTick();
+            featureManager.onClientEndTickEvent(event);
         }
     }
 
@@ -53,6 +63,12 @@ public class MacroManager {
         }
     }
 
+    /**
+     * Sets the managers current active {@link Macro} by string id, only one macro can be live at once so this is responsible for destruction.
+     * For adding Macro objects to be enabled, see {@link #register}
+     *
+     * @param id string id of the macro to set active
+     */
     public void setActiveMacro(String id) {
         Macro macro = macros.get(id);
         if (macro == null) return;
@@ -70,6 +86,12 @@ public class MacroManager {
         eventBus.register(activeMacro);
     }
 
+
+    /**
+     * Enable or disable the current {@link Macro} set by {@link #setActiveMacro}
+     *
+     * @param enabled enabled?
+     */
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled || activeMacro == null) return;
 

@@ -14,10 +14,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.config.ConfigSerializer;
 import net.tidalhq.tidal.event.EventBus;
-import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
-import net.tidalhq.tidal.event.impl.ClientTickEvent;
-import net.tidalhq.tidal.event.impl.ServerConnectEvent;
-import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
+import net.tidalhq.tidal.event.impl.*;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.feature.impl.PestWarningFeature;
@@ -91,11 +88,16 @@ public class Tidal implements ClientModInitializer {
 				eventBus.post(new ServerDisconnectEvent()));
 
 		ClientTickEvents.END_CLIENT_TICK.register(c -> {
-			eventBus.post(new ClientTickEvent());
+			eventBus.post(new ClientEndTickEvent());
 			if (activeNavigation != null && activeNavigation.isActive()) {
 				activeNavigation.onTick();
 			}
 		});
+
+		ClientTickEvents.START_CLIENT_TICK.register(c -> {
+			eventBus.post(new ClientStartTickEvent());
+		});
+
 		ClientReceiveMessageEvents.GAME.register((message, signed) ->
 				eventBus.post(new ClientReceiveGameMessageEvent(message.getString())));
 	}
