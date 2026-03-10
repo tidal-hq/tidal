@@ -19,9 +19,6 @@ public abstract class Macro {
     private boolean pendingWarp;
     private int     warpCountdown;
 
-    private boolean pendingStart;
-    private int     startCountdown;
-
     private boolean wasSneaking;
 
 
@@ -54,8 +51,6 @@ public abstract class Macro {
             return false;
         }
 
-        scheduleStart();
-        setPhase(CorePhase.WARPING);
         return true;
     }
 
@@ -72,14 +67,6 @@ public abstract class Macro {
     }
 
     public void onTick() {
-        if (pendingStart) {
-            if (--startCountdown <= 0) {
-                pendingStart = false;
-                setPhase(CorePhase.IDLE);
-            }
-            return;
-        }
-
         tickWarp();
         updatePhase();
         applyInputs();
@@ -109,11 +96,6 @@ public abstract class Macro {
             InputUtil.unSneak();
             wasSneaking = false;
         }
-    }
-
-    private void scheduleStart() {
-        pendingStart   = true;
-        startCountdown = randomBetween(START_DELAY_MIN, START_DELAY_MAX);
     }
 
     private static int randomBetween(int min, int max) {
