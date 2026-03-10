@@ -10,11 +10,13 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.config.ConfigSerializer;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.impl.*;
+import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.feature.impl.PestWarningFeature;
@@ -61,11 +63,11 @@ public class Tidal implements ClientModInitializer {
 		featureManager.register(new PestWarningFeature(featureCtx));
 		featureManager.setEnabled("pest_warning", true);
 
-		ConfigSerializer configSerializer = new ConfigSerializer(
-				net.fabricmc.loader.api.FabricLoader.getInstance()
+		ConfigSerializer<Feature> configSerializer = new ConfigSerializer<Feature>(
+				FabricLoader.getInstance()
 						.getConfigDir().resolve("tidal.properties")
 		);
-		configSerializer.load(featureManager.getRegistry(), featureManager);
+		configSerializer.load(featureManager.getRegistry());
 
 		Runtime.getRuntime().addShutdownHook(new Thread(() ->
 				configSerializer.save(featureManager.getRegistry())));
@@ -73,8 +75,8 @@ public class Tidal implements ClientModInitializer {
 
 		MacroContext ctx = new MacroContext(worldAccessor, gameState, eventBus, notifier);
 		macroManager = new MacroManager(ctx, featureManager);
-		macroManager.register("ssdsmushroom", new SShapeMushroomSDSMacro(ctx));
-		macroManager.register("ssdsmelon", new SShapeMelonSDSMacro(ctx));
+		macroManager.register(new SShapeMushroomSDSMacro(ctx));
+		macroManager.register(new SShapeMelonSDSMacro(ctx));
 
 		registerFabricEvents(eventBus, client);
 		registerCommands();

@@ -1,11 +1,12 @@
 package net.tidalhq.tidal.macro;
 
 import net.tidalhq.tidal.Crop;
+import net.tidalhq.tidal.registry.Registerable;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
-public abstract class Macro {
+public abstract class Macro implements Registerable {
 
     protected final MacroContext ctx;
 
@@ -109,6 +110,8 @@ public abstract class Macro {
     public abstract Location getTargetLocation();
 
     public abstract String getName();
+    public abstract String getDescription();
+    public abstract String getId();
 
     public abstract Crop getTargetCrop();
 }

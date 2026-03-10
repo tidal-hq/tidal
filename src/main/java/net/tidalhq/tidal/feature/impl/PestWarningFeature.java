@@ -1,5 +1,6 @@
 package net.tidalhq.tidal.feature.impl;
 
+import net.tidalhq.tidal.registry.Registerable;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.PestSpawnedEvent;
@@ -17,8 +18,9 @@ public class PestWarningFeature extends Feature implements MacroLifecycleHook {
         super(ctx);
     }
 
-    @Override public String getId()          { return "pest_warning"; }
-    @Override public String getDisplayName() { return "Pest Warning"; }
+    @Override public String getId() { return "pest_warning"; }
+    @Override public String getName() { return "Pest Warning"; }
+    @Override public String getDescription() {return "Warns you through your Notification channel when you lose farming fortune to pests.";}
     @Override public Category getCategory()  { return Category.FARMING; }
 
     @Override

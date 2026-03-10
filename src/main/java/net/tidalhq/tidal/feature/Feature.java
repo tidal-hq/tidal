@@ -3,17 +3,21 @@ package net.tidalhq.tidal.feature;
 import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.config.ConfigOption;
+import net.tidalhq.tidal.config.ConfigSerializable;
 import net.tidalhq.tidal.pathfind.PathResult;
 import net.tidalhq.tidal.pathfind.PathfindingSession;
+import net.tidalhq.tidal.registry.Registerable;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
  * Base Feature class
  * holds context, enabled state, and pathfinder session
  */
-public abstract class Feature {
+public abstract class Feature implements Registerable, ConfigSerializable {
     protected final FeatureContext ctx;
     private boolean enabled;
 
@@ -57,7 +61,8 @@ public abstract class Feature {
     }
 
     public abstract String getId();
-    public abstract String getDisplayName();
+    public abstract String getName();
+    public abstract String getDescription();
     public abstract Category getCategory();
 
     public List<ConfigOption<?>> getOptions() {
@@ -67,4 +72,32 @@ public abstract class Feature {
     public boolean isEnabled() { return enabled; }
 
     void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    @Override
+    public Map<String, String> serialize() {
+        Map<String, String> data = new HashMap<>();
+        data.put("enabled", String.valueOf(enabled));
+
+        for (ConfigOption<?> option : getOptions()) {
+            data.put(option.getKey(), option.serialize());
+        }
+
+        return data;
+    }
+
+    @Override
+    public void deserialize(Map<String, String> values) {
+
+        String enabledRaw = values.get("enabled");
+        if (enabledRaw != null) {
+            enabled = Boolean.parseBoolean(enabledRaw);
+        }
+
+        for (ConfigOption<?> option : getOptions()) {
+            String raw = values.get(option.getKey());
+            if (raw != null) {
+                option.deserialize(raw);
+            }
+        }
+    }
 }

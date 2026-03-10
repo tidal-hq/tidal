@@ -1,7 +1,6 @@
 package net.tidalhq.tidal.config;
 
-import net.tidalhq.tidal.feature.Feature;
-import net.tidalhq.tidal.feature.FeatureRegistry;
+import net.tidalhq.tidal.registry.Registry;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,7 +8,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.logging.Logger;
 
-public class ConfigSerializer {
+public class ConfigSerializer<T extends ConfigSerializable> {
 
     private static final Logger LOGGER = Logger.getLogger("tidal.config");
 
@@ -18,61 +17,67 @@ public class ConfigSerializer {
     public ConfigSerializer(Path filePath) {
         this.filePath = filePath;
     }
-    public void save(FeatureRegistry registry) {
+
+    public void save(Registry<T> registry) {
+
         List<String> lines = new ArrayList<>();
 
-        for (Feature feature : registry.all()) {
-            String prefix = feature.getId() + ".";
-            lines.add(prefix + "enabled=" + feature.isEnabled());
+        for (T obj : registry.getRegisteredObjects()) {
 
-            for (ConfigOption<?> option : feature.getOptions()) {
-                lines.add(prefix + option.getKey() + "=" + option.serialize());
+            String prefix = obj.getId() + ".";
+
+            for (var entry : obj.serialize().entrySet()) {
+                lines.add(prefix + entry.getKey() + "=" + entry.getValue());
             }
         }
 
         try {
             Files.createDirectories(filePath.getParent());
-            Files.writeString(filePath, String.join(System.lineSeparator(), lines));
+            Files.write(filePath, lines);
         } catch (IOException e) {
             LOGGER.warning("Failed to save config: " + e.getMessage());
         }
     }
 
-    public void load(FeatureRegistry registry, net.tidalhq.tidal.feature.FeatureManager featureManager) {
+    public void load(Registry<T> registry) {
+
         if (!Files.exists(filePath)) return;
 
-        Map<String, String> entries = new LinkedHashMap<>();
+        Map<String, Map<String, String>> grouped = new HashMap<>();
+
         try {
             for (String line : Files.readAllLines(filePath)) {
+
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
+
                 int eq = line.indexOf('=');
                 if (eq < 0) continue;
-                entries.put(line.substring(0, eq).trim(), line.substring(eq + 1).trim());
+
+                String key = line.substring(0, eq);
+                String value = line.substring(eq + 1);
+
+                int dot = key.indexOf('.');
+                if (dot < 0) continue;
+
+                String id = key.substring(0, dot);
+                String option = key.substring(dot + 1);
+
+                grouped
+                        .computeIfAbsent(id, k -> new HashMap<>())
+                        .put(option, value);
             }
+
         } catch (IOException e) {
             LOGGER.warning("Failed to read config: " + e.getMessage());
             return;
         }
 
-        for (Feature feature : registry.all()) {
-            String prefix = feature.getId() + ".";
+        for (T obj : registry.getRegisteredObjects()) {
 
-            String enabledRaw = entries.get(prefix + "enabled");
-            if (enabledRaw != null) {
-                featureManager.setEnabled(feature.getId(), Boolean.parseBoolean(enabledRaw));
-            }
-
-            for (ConfigOption<?> option : feature.getOptions()) {
-                String raw = entries.get(prefix + option.getKey());
-                if (raw != null) {
-                    try {
-                        option.deserialize(raw);
-                    } catch (Exception e) {
-                        LOGGER.warning("Could not deserialize option '"
-                                + prefix + option.getKey() + "': " + e.getMessage());
-                    }
-                }
+            Map<String, String> values = grouped.get(obj.getId());
+            if (values != null) {
+                obj.deserialize(values);
             }
         }
     }

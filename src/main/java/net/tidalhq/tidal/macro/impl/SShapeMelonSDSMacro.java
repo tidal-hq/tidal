@@ -23,6 +23,16 @@ public class SShapeMelonSDSMacro extends Macro {
     public String getName() { return "S-Shape Melon (SDS)"; }
 
     @Override
+    public String getDescription() {
+        return "S-Shape Melon (SDS)";
+    }
+
+    @Override
+    public String getId() {
+        return "s_sds_melon";
+    }
+
+    @Override
     public Location getTargetLocation() { return Location.GARDEN; }
 
     @Override

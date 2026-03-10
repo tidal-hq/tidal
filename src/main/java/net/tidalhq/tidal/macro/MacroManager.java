@@ -5,6 +5,7 @@ import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
 import net.tidalhq.tidal.feature.FeatureManager;
+import net.tidalhq.tidal.registry.Registry;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -14,13 +15,13 @@ import java.util.regex.Pattern;
 
 /**
  * MacroManager class responsible for high level selection and execution of a {@link Macro}.
- * Has a built-in registry instead of a separate class like {@link net.tidalhq.tidal.feature.FeatureRegistry}, who knows why.
+ *
  * Responsible for registration to the {@link EventBus}, subscriptions are passed on to child {@link Macro} and {@link FeatureManager}.
  */
 public class MacroManager {
     private static final Pattern DEATH_PATTERN = Pattern.compile("☠ You (?<reason>.+)");
 
-    private final Map<String, Macro> macros = new LinkedHashMap<>();
+    private final Registry<Macro> registry = new Registry<Macro>();
     private final EventBus eventBus;
     private final FeatureManager featureManager;
 
@@ -37,11 +38,10 @@ public class MacroManager {
     /**
      * Registers a macro to the manager, allowing it to be enabled and disabled
      *
-     * @param id string identifier for the macro, think 'mushroom_macro'
-     * @param macro the macro object to register under the given id
+     * @param macro the macro object to register
      */
-    public void register(String id, Macro macro) {
-        macros.put(id, macro);
+    public void register(Macro macro) {
+        registry.put(macro);
     }
 
     @Subscribe
@@ -70,7 +70,7 @@ public class MacroManager {
      * @param id string id of the macro to set active
      */
     public void setActiveMacro(String id) {
-        Macro macro = macros.get(id);
+        Macro macro = registry.get(id).orElse(null);
         if (macro == null) return;
 
         if (activeMacro != null) {
@@ -110,5 +110,4 @@ public class MacroManager {
     public String getActiveMacroId()       { return activeMacroId; }
     public Macro getActiveMacro()          { return activeMacro; }
     public boolean isEnabled()             { return enabled; }
-    public Map<String, Macro> getMacros()  { return Collections.unmodifiableMap(macros); }
 }

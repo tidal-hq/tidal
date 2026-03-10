@@ -3,21 +3,24 @@ package net.tidalhq.tidal.feature;
 import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.macro.MacroManager;
+import net.tidalhq.tidal.registry.Registry;
 import net.tidalhq.tidal.util.InputUtil;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * High level manager for high level selection and execution of a {@link Feature}, child of a {@link MacroManager}.
- * Contains a {@link FeatureRegistry} used for registering available features and retrieving them.
+ * Contains a {@link net.tidalhq.tidal.registry.Registry} used for registering available features and retrieving them.
  */
 public class FeatureManager {
-    private final FeatureRegistry registry = new FeatureRegistry();
+    private final Registry<Feature> registry = new Registry<Feature>();
     private boolean macroPaused = false;
 
     public void register(Feature feature) {
-        registry.register(feature);
+        registry.put(feature);
     }
 
     /**
@@ -65,7 +68,7 @@ public class FeatureManager {
      * @param event the tick event forwarded from {@link MacroManager}.
      */
     public void onClientEndTickEvent(ClientEndTickEvent event) {
-        registry.all().stream()
+        registry.getRegisteredObjects().stream()
                 .filter(Feature::isEnabled)
                 .forEach(f -> { f.onTick(); f.onNavigationTick(); });
     }
@@ -78,7 +81,7 @@ public class FeatureManager {
      * @param macro the currently active, enabled macro
      */
     public void tickWithMacro(Macro macro) {
-        registry.all().stream()
+        registry.getRegisteredObjects().stream()
                 .filter(Feature::isEnabled)
                 .forEach(f -> { f.onTick(); f.onNavigationTick(); });
 
@@ -127,10 +130,10 @@ public class FeatureManager {
 
     public boolean isMacroPaused() { return macroPaused; }
 
-    public FeatureRegistry getRegistry() { return registry; }
+    public Registry<Feature> getRegistry() { return registry; }
 
     private List<MacroLifecycleHook> enabledHooks() {
-        return registry.all().stream()
+        return registry.getRegisteredObjects().stream()
                 .filter(Feature::isEnabled)
                 .filter(f -> f instanceof MacroLifecycleHook)
                 .map(f -> (MacroLifecycleHook) f)

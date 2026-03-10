@@ -25,6 +25,16 @@ public class SShapeMushroomSDSMacro extends Macro {
     public String getName() { return "S-Shape Mushroom (SDS)"; }
 
     @Override
+    public String getDescription() {
+        return "S-Shape Mushroom (SDS)";
+    }
+
+    @Override
+    public String getId() {
+        return "s_sds_mushroom";
+    }
+
+    @Override
     public Location getTargetLocation() { return Location.GARDEN; }
 
     @Override
