@@ -29,4 +29,7 @@ public class MinecraftWorldAccessor {
     public Block getBlock(BlockPos pos) {
         return client.world.getBlockState(pos).getBlock();
     }
+    public boolean isChunkLoaded(BlockPos pos) {
+        return client.world != null && client.world.getChunk(pos) != null;
+    }
 }

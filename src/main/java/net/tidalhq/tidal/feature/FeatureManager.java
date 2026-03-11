@@ -70,7 +70,7 @@ public class FeatureManager {
     public void onClientEndTickEvent(ClientEndTickEvent event) {
         registry.getRegisteredObjects().stream()
                 .filter(Feature::isEnabled)
-                .forEach(f -> { f.onTick(); f.onNavigationTick(); });
+                .forEach(Feature::onTick);
     }
 
 
@@ -83,7 +83,7 @@ public class FeatureManager {
     public void tickWithMacro(Macro macro) {
         registry.getRegisteredObjects().stream()
                 .filter(Feature::isEnabled)
-                .forEach(f -> { f.onTick(); f.onNavigationTick(); });
+                .forEach(Feature::onTick);
 
         List<MacroLifecycleHook> hooks = enabledHooks();
 

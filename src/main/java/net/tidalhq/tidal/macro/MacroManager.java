@@ -48,8 +48,6 @@ public class MacroManager {
     public void onClientEndTickEvent(ClientEndTickEvent event) {
         if (enabled && activeMacro != null) {
             featureManager.tickWithMacro(activeMacro);
-        } else {
-            featureManager.onClientEndTickEvent(event);
         }
     }
 

@@ -10,18 +10,16 @@ public abstract class Macro implements Registerable {
 
     protected final MacroContext ctx;
 
-    private static final int WARP_DELAY_MIN  = 20;
-    private static final int WARP_DELAY_MAX  = 60;
-    private static final int START_DELAY_MIN = 60;
-    private static final int START_DELAY_MAX = 100;
+    private static final int WARP_DELAY_MIN = 20;
+    private static final int WARP_DELAY_MAX = 60;
 
     private MacroPhase currentPhase;
 
     private boolean pendingWarp;
     private int     warpCountdown;
+    private boolean initialWarpPending;
 
     private boolean wasSneaking;
-
 
     protected Macro(MacroContext ctx) {
         this.ctx = ctx;
@@ -40,22 +38,12 @@ public abstract class Macro implements Registerable {
     protected void onPhaseChanged(MacroPhase previous, MacroPhase next) {}
 
     public boolean onEnable() {
-        Location target = getTargetLocation();
-        if (!ctx.gameState().getCurrentLocation().equals(target)) {
-            ctx.notifier().info("Warping to " + target.getName());
-            PlayerUtil.warp(target);
-        }
-
-        Crop crop = getTargetCrop();
-        if (!PlayerUtil.setToolForCrop(crop)) {
-            ctx.notifier().danger("No suitable tool in hotbar for " + crop.name());
-            return false;
-        }
-
+        initialWarpPending = true;
         return true;
     }
 
     public void onDisable() {
+        initialWarpPending = false;
         setPhase(null);
         InputUtil.reset();
     }
@@ -74,13 +62,23 @@ public abstract class Macro implements Registerable {
         tickSneak();
     }
 
-
     private void tickWarp() {
-        if (!pendingWarp) return;
-        if (--warpCountdown <= 0) {
-            pendingWarp = false;
-            PlayerUtil.warp(getTargetLocation());
-            setPhase(CorePhase.IDLE);
+        if (pendingWarp) {
+            if (--warpCountdown <= 0) {
+                pendingWarp = false;
+                PlayerUtil.warp(getTargetLocation());
+                setPhase(CorePhase.IDLE);
+            }
+            return;
+        }
+
+        if (initialWarpPending) {
+            initialWarpPending = false;
+            Location target = getTargetLocation();
+            if (!ctx.gameState().getCurrentLocation().equals(target)) {
+                ctx.notifier().info("Warping to " + target.getName());
+                PlayerUtil.warp(target);
+            }
         }
     }
 
@@ -104,14 +102,10 @@ public abstract class Macro implements Registerable {
     }
 
     public abstract void updatePhase();
-
     public abstract void applyInputs();
-
     public abstract Location getTargetLocation();
-
     public abstract String getName();
     public abstract String getDescription();
     public abstract String getId();
-
     public abstract Crop getTargetCrop();
 }

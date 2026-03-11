@@ -18,7 +18,7 @@ public class PlayerUtil {
             Tidal.LOGGER.warn("[PlayerUtil] Cannot warp: not connected");
             return;
         }
-        client.getNetworkHandler().sendChatCommand("/warp " + to.name());
+        client.getNetworkHandler().sendChatCommand("warp " + to.name());
     }
 
     public static int toolForCrop(Crop crop) {
