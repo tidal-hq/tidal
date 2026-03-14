@@ -1,6 +1,5 @@
 package net.tidalhq.tidal;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -16,6 +15,10 @@ import net.minecraft.text.Text;
 import net.tidalhq.tidal.config.ConfigSerializer;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.impl.*;
+import net.tidalhq.tidal.failsafe.FailsafeContext;
+import net.tidalhq.tidal.failsafe.FailsafeManager;
+import net.tidalhq.tidal.failsafe.impl.DisconnectFailsafe;
+import net.tidalhq.tidal.failsafe.impl.UnexpectedLocationFailsafe;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.FeatureManager;
@@ -41,8 +44,9 @@ public class Tidal implements ClientModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	private static FeatureManager featureManager;
-
+	private static FailsafeManager failsafeManager;
 	private static MacroManager macroManager;
+
 	public static MacroManager getMacroManager() { return macroManager; }
 
 	@Override
@@ -58,9 +62,8 @@ public class Tidal implements ClientModInitializer {
 		MinecraftWorldAccessor worldAccessor = new MinecraftWorldAccessor(client);
 
 		featureManager = new FeatureManager();
-		ConfigSerializer<Feature> configSerializer = new ConfigSerializer<Feature>(
-				FabricLoader.getInstance()
-						.getConfigDir().resolve("tidal.properties")
+		ConfigSerializer<Feature> configSerializer = new ConfigSerializer<>(
+				FabricLoader.getInstance().getConfigDir().resolve("tidal.properties")
 		);
 		configSerializer.load(featureManager.getRegistry());
 
@@ -68,16 +71,23 @@ public class Tidal implements ClientModInitializer {
 		featureManager.register(new PestWarningFeature(featureCtx));
 		featureManager.register(new AutoBoosterCookieFeature(featureCtx));
 		featureManager.setEnabled("pest_warning", true);
-		featureManager.setEnabled("auto_booster_cookie", true);
+		featureManager.setEnabled("auto_booster_cookie", false);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(() ->
 				configSerializer.save(featureManager.getRegistry())));
 
+		MacroContext macroCtx = new MacroContext(worldAccessor, gameState, eventBus, notifier);
 
-		MacroContext ctx = new MacroContext(worldAccessor, gameState, eventBus, notifier);
-		macroManager = new MacroManager(ctx, featureManager);
-		macroManager.register(new SShapeMushroomSDSMacro(ctx));
-		macroManager.register(new SShapeMelonSDSMacro(ctx));
+		failsafeManager = new FailsafeManager();
+
+		macroManager = new MacroManager(macroCtx, featureManager, failsafeManager);
+
+		FailsafeContext failsafeCtx = new FailsafeContext(gameState, notifier);
+		failsafeManager.register(new DisconnectFailsafe(failsafeCtx));
+		failsafeManager.register(new UnexpectedLocationFailsafe(failsafeCtx));
+
+		macroManager.register(new SShapeMushroomSDSMacro(macroCtx));
+		macroManager.register(new SShapeMelonSDSMacro(macroCtx));
 
 		registerFabricEvents(eventBus, client);
 		registerCommands();
@@ -90,13 +100,11 @@ public class Tidal implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, c) ->
 				eventBus.post(new ServerDisconnectEvent()));
 
-		ClientTickEvents.END_CLIENT_TICK.register(c -> {
-			eventBus.post(new ClientEndTickEvent());
-		});
+		ClientTickEvents.END_CLIENT_TICK.register(c ->
+				eventBus.post(new ClientEndTickEvent()));
 
-		ClientTickEvents.START_CLIENT_TICK.register(c -> {
-			eventBus.post(new ClientStartTickEvent());
-		});
+		ClientTickEvents.START_CLIENT_TICK.register(c ->
+				eventBus.post(new ClientStartTickEvent()));
 
 		ClientReceiveMessageEvents.GAME.register((message, signed) ->
 				eventBus.post(new ClientReceiveGameMessageEvent(message.getString())));

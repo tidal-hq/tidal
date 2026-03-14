@@ -1,32 +1,44 @@
 package net.tidalhq.tidal.feature;
 
-import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
+import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.Subscribe;
+import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.registry.Registry;
 import net.tidalhq.tidal.util.InputUtil;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
- * High level manager for high level selection and execution of a {@link Feature}, child of a {@link MacroManager}.
- * Contains a {@link net.tidalhq.tidal.registry.Registry} used for registering available features and retrieving them.
+ * Manages all registered {@link Feature} instances and their interaction with the active macro.
+ *
+ * FeatureManager does NOT subscribe to ClientEndTickEvent directly. It is driven by
+ * {@link MacroManager#onClientEndTick}, which calls {@link #tickWithMacro(Macro)} when a macro
+ * is running. This keeps the tick-ordering explicit: macro features always tick in lockstep with
+ * the macro, not independently on a separate event subscription.
+ *
+ * FeatureManager subscribes to {@link MacroStoppedEvent} to clean up pause state when the macro
+ * stops for any reason (user-initiated or failsafe-triggered).
  */
 public class FeatureManager {
-    private final Registry<Feature> registry = new Registry<Feature>();
+    private final Registry<Feature> registry = new Registry<>();
     private boolean macroPaused = false;
+
+    public FeatureManager() {
+        EventBus.getInstance().register(this);
+    }
 
     public void register(Feature feature) {
         registry.put(feature);
+        EventBus.getInstance().register(feature);
     }
 
     /**
-     * Toggles feature, same logic as {@link FeatureManager#setEnabled(String, boolean)} but with !feature.isEnabled() as arg.
+     * Toggles a feature on/off by id.
      *
-     * @param id string identifier of {@link Feature} object to toggle.
+     * @param id string identifier of the target {@link Feature}.
      * @return boolean success.
      */
     public boolean toggle(String id) {
@@ -37,7 +49,7 @@ public class FeatureManager {
     }
 
     /**
-     * @param id string identifier of target {@link Feature}.
+     * @param id      string identifier of target {@link Feature}.
      * @param enabled enable target?
      * @return boolean success.
      */
@@ -47,12 +59,6 @@ public class FeatureManager {
                 .orElse(false);
     }
 
-    /**
-     * Overloaded {@link FeatureManager#setEnabled(String, boolean)} which directly takes a {@link Feature} and performs actual enabling.
-     * @param feature target {@link Feature} obj.
-     * @param enabled enable target?
-     * @return boolean success.
-     */
     private boolean setEnabled(Feature feature, boolean enabled) {
         if (feature.isEnabled() == enabled) return enabled;
         feature.setEnabled(enabled);
@@ -62,21 +68,9 @@ public class FeatureManager {
     }
 
     /**
-     * Ticks all enabled features outside a macro context.
-     * Called from {@link MacroManager#onClientEndTickEvent} when no macro is active.
-     *
-     * @param event the tick event forwarded from {@link MacroManager}.
-     */
-    public void onClientEndTickEvent(ClientEndTickEvent event) {
-        registry.getRegisteredObjects().stream()
-                .filter(Feature::isEnabled)
-                .forEach(Feature::onTick);
-    }
-
-
-    /**
-     * Ticks all enabled features alongside the active macro, handling pause and resume transitions.
-     * Called each tick by {@link MacroManager}
+     * Ticks all enabled features alongside the active macro, handling pause and resume.
+     * Called each tick by {@link MacroManager} — not via EventBus subscription — so that
+     * feature ticks are guaranteed to happen in the same frame as the macro tick.
      *
      * @param macro the currently active, enabled macro
      */
@@ -110,7 +104,7 @@ public class FeatureManager {
 
     /**
      * Runs pre-start checks across all enabled {@link MacroLifecycleHook}s.
-     * fails on the first veto, if any hook returns {@code false} the macro start is blocked immediately.
+     * Fails on the first veto.
      *
      * @param macro the macro about to start.
      * @return {@code true} if all hooks approved; {@code false} if any vetoed.
@@ -122,6 +116,11 @@ public class FeatureManager {
             }
         }
         return true;
+    }
+
+    @Subscribe
+    public void onMacroStopped(MacroStoppedEvent event) {
+        resetMacroPaused();
     }
 
     public void resetMacroPaused() {

@@ -39,6 +39,13 @@ public abstract class Macro implements Registerable {
 
     public boolean onEnable() {
         initialWarpPending = true;
+
+        Crop crop = getTargetCrop();
+        if (!PlayerUtil.setToolForCrop(crop)) {
+            ctx.notifier().danger("No suitable tool in hotbar for " + crop.name());
+            return false;
+        }
+
         return true;
     }
 
@@ -58,7 +65,9 @@ public abstract class Macro implements Registerable {
     public void onTick() {
         tickWarp();
         updatePhase();
-        applyInputs();
+        if (!initialWarpPending) {
+            applyInputs();
+        }
         tickSneak();
     }
 
@@ -73,10 +82,10 @@ public abstract class Macro implements Registerable {
         }
 
         if (initialWarpPending) {
-            initialWarpPending = false;
             Location target = getTargetLocation();
-            if (!ctx.gameState().getCurrentLocation().equals(target)) {
-                ctx.notifier().info("Warping to " + target.getName());
+            if (ctx.gameState().getCurrentLocation().equals(target)) {
+                initialWarpPending = false;
+            } else {
                 PlayerUtil.warp(target);
             }
         }
