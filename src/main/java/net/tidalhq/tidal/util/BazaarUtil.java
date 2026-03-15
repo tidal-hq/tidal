@@ -16,7 +16,7 @@ public class BazaarUtil {
                 .waitFor("Buy Instantly",  s -> InventoryUtil.hasSlot(s, "Buy Instantly"),  s -> InventoryUtil.clickSlot(s, "Buy Instantly"))
                 .waitFor("Custom qty",     s -> InventoryUtil.hasSlot(s, "Custom Amount"),  s -> InventoryUtil.clickSlot(s, "Custom Amount"))
                 .waitFor("Quantity sign",  s -> s instanceof AbstractSignEditScreen, s -> SignInput.setAndConfirm(String.valueOf(quantity)))
-                .waitFor("Confirm",        s -> InventoryUtil.hasSlot(s, "Confirm"),        s -> InventoryUtil.clickSlot(s, "Confirm"));
+                .waitFor("Confirm",        s -> InventoryUtil.hasSlot(s, "Custom Amount"),        s -> InventoryUtil.clickSlot(s, "Custom Amount"));
     }
 
     public static GuiInteraction sell(String itemName, int quantity) {

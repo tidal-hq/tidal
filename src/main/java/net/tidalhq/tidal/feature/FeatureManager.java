@@ -68,6 +68,8 @@ public class FeatureManager {
         if (macroPaused) {
             macroPaused = false;
             hooks.forEach(h -> h.onMacroResumed(macro));
+            boolean anyStillActive = hooks.stream().anyMatch(h -> h.shouldPauseMacro(macro));
+            if (!anyStillActive) macro.onResume();
         }
 
         macro.onTick();

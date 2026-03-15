@@ -1,6 +1,5 @@
 package net.tidalhq.tidal;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -13,7 +12,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.config.ConfigSerializer;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.impl.*;
@@ -25,24 +23,21 @@ import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.feature.impl.AutoBoosterCookieFeature;
+import net.tidalhq.tidal.feature.impl.AutoGodPotionFeature;
 import net.tidalhq.tidal.feature.impl.PestWarningFeature;
+import net.tidalhq.tidal.feature.impl.SemiAutoVisitorFeature;
 import net.tidalhq.tidal.gui.MainScreen;
 import net.tidalhq.tidal.macro.MacroContext;
 import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.macro.impl.SShapeMelonSDSMacro;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 import net.tidalhq.tidal.notification.Notifier;
-import net.tidalhq.tidal.pathfinder.PathExecutor;
-import net.tidalhq.tidal.pathfinder.WalkPathfinder;
 import net.tidalhq.tidal.state.CompositeGameStateView;
 import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
-import net.tidalhq.tidal.util.BlockUtil;
 import net.tidalhq.tidal.world.MinecraftWorldAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class Tidal implements ClientModInitializer {
@@ -77,8 +72,12 @@ public class Tidal implements ClientModInitializer {
 		FeatureContext featureCtx = new FeatureContext(gameState, eventBus, notifier, worldAccessor);
 		featureManager.register(new PestWarningFeature(featureCtx));
 		featureManager.register(new AutoBoosterCookieFeature(featureCtx));
+		featureManager.register(new AutoGodPotionFeature(featureCtx));
+		featureManager.register(new SemiAutoVisitorFeature(featureCtx));
+		featureManager.setEnabled("visitor_macro", true);
 		featureManager.setEnabled("pest_warning", true);
 		featureManager.setEnabled("auto_booster_cookie", true);
+		featureManager.setEnabled("auto_god_potion", true);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(() ->
 				configSerializer.save(featureManager.getRegistry())));

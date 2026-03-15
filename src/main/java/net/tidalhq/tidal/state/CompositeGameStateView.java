@@ -1,5 +1,7 @@
 package net.tidalhq.tidal.state;
 
+import java.util.List;
+
 public class CompositeGameStateView {
 
     private final ServerState serverState;
@@ -29,4 +31,8 @@ public class CompositeGameStateView {
     public BuffState getCookieBuffState() {
         return tablistState.getCookieBuffState();
     }
+
+    public List<Integer> getInfestedPlots() { return tablistState.getInfestedPlots(); }
+
+    public boolean inGarden() {return tablistState.inGarden();}
 }

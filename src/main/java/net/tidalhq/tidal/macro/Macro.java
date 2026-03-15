@@ -7,7 +7,6 @@ import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
 public abstract class Macro implements Registerable {
-
     protected final MacroContext ctx;
 
     private static final int WARP_DELAY_MIN = 20;
@@ -48,6 +47,10 @@ public abstract class Macro implements Registerable {
         }
 
         return true;
+    }
+
+    public void onResume() {
+        PlayerUtil.setToolForCrop(getTargetCrop());
     }
 
     public void onDisable() {
