@@ -1,9 +1,11 @@
 package net.tidalhq.tidal.feature.impl;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.Npc;
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.config.BooleanOption;
 import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.config.EnumOption;
@@ -12,7 +14,6 @@ import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.LocationSanctionEvent;
 import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
@@ -21,6 +22,7 @@ import net.tidalhq.tidal.notification.Notification;
 import net.tidalhq.tidal.state.BuffState;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.BazaarUtil;
+import net.tidalhq.tidal.util.InventoryUtil;
 import net.tidalhq.tidal.util.GuiInteraction;
 import net.tidalhq.tidal.util.NpcInteraction;
 import net.tidalhq.tidal.util.PlayerUtil;
@@ -35,6 +37,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         WAITING_FOR_CHUNK,
         WALKING_TO_BAZAAR,
         WAITING_FOR_BUY,
+        USING_FROM_INVENTORY,
         DONE,
         FAILED
     }
@@ -59,11 +62,14 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     }
 
     private AcquisitionState acquisitionState = AcquisitionState.IDLE;
-    private int              chunkWaitTicks       = 0;
-    private static final int CHUNK_WAIT_MAX       = 100;
+    private int              chunkWaitTicks   = 0;
+    private static final int CHUNK_WAIT_MAX   = 100;
 
     private NpcInteraction bazaarInteraction = null;
     private GuiInteraction buyInteraction    = null;
+    private int            cookieHotbarSlot  = -1;
+
+    private static final MinecraftClient client = MinecraftClient.getInstance();
 
     public AutoBoosterCookieFeature(FeatureContext ctx) { super(ctx); }
 
@@ -89,8 +95,8 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         switch (source.get()) {
             case INVENTORY        -> applyFromInventory();
             case BACKPACK         -> applyFromBackpack();
-            case BAZAAR_NO_COOKIE,
-                 BAZAAR           -> purchaseFromBazaar();
+            case BAZAAR        -> purchaseFromBazaarBz();
+            case BAZAAR_NO_COOKIE -> purchaseFromBazaar();
         }
     }
 
@@ -109,7 +115,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     public boolean shouldPauseMacro(Macro macro) {
         if (acquisitionState == AcquisitionState.IDLE || acquisitionState == AcquisitionState.DONE) return false;
         if (acquisitionState == AcquisitionState.FAILED) return pauseIfUnavailable.get();
-        return true; // mid-acquisition
+        return true;
     }
 
     @Override
@@ -122,6 +128,34 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
                     + acquisitionState + ")");
         }
     }
+
+    private void applyFromInventory() {
+        switch (acquisitionState) {
+            case IDLE -> {
+                int slot = InventoryUtil.findInInventory("Booster Cookie");
+                if (slot == -1) { fail("no Booster Cookie found in inventory"); return; }
+                cookieHotbarSlot = InventoryUtil.moveToHotbar(slot);
+                if (cookieHotbarSlot == -1) { fail("could not move cookie to hotbar"); return; }
+                acquisitionState = AcquisitionState.USING_FROM_INVENTORY;
+            }
+            case USING_FROM_INVENTORY -> {
+                if (buyInteraction != null) return;
+                if (cookieHotbarSlot == -1) { fail("lost track of cookie hotbar slot"); return; }
+                InventoryUtil.selectHotbarSlot(cookieHotbarSlot);
+                buyInteraction = GuiInteraction.begin()
+                        .waitFor("Consume Cookie", s -> InventoryUtil.hasSlot(s, "Consume Cookie"),
+                                s -> InventoryUtil.clickSlot(s, "Consume Cookie"))
+                        .onDone(() -> {
+                            acquisitionState = AcquisitionState.DONE;
+                            stopSubInteractions();
+                        })
+                        .onFail(reason -> fail("cookie confirm GUI failed: " + reason))
+                        .start();
+                net.tidalhq.tidal.util.InputUtil.press(client.options.useKey);
+            }
+        }
+    }
+
 
     private void purchaseFromBazaar() {
         switch (acquisitionState) {
@@ -137,9 +171,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
             }
 
             case WARPING_TO_HUB -> {
-                if (ctx.gameState().getCurrentLocation() == Location.HUB) {
-                    beginHubArrival();
-                }
+                if (ctx.gameState().getCurrentLocation() == Location.HUB) beginHubArrival();
             }
 
             case WAITING_FOR_CHUNK -> {
@@ -153,9 +185,31 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
 
             case WALKING_TO_BAZAAR, WAITING_FOR_BUY -> {}
 
-            case DONE -> {}
-
+            case DONE   -> {}
             case FAILED -> {}
+        }
+    }
+
+    private void purchaseFromBazaarBz() {
+        switch (acquisitionState) {
+            case IDLE -> {
+                acquisitionState = AcquisitionState.WAITING_FOR_BUY;
+                if (client.player != null) {
+                    client.player.networkHandler.sendChatCommand("bz");
+                }
+            }
+            case WAITING_FOR_BUY -> {
+                if (buyInteraction != null) return;
+                buyInteraction = BazaarUtil.buy("Booster Cookie", 1)
+                        .onDone(() -> {
+                            acquisitionState = AcquisitionState.DONE;
+                            stopSubInteractions();
+                            client.setScreen(null);
+                        })
+                        .onFail(reason -> fail("bazaar GUI failed: " + reason))
+                        .start();
+            }
+            case DONE, FAILED -> {}
         }
     }
 
@@ -184,7 +238,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
                                     .onDone(() -> {
                                         acquisitionState = AcquisitionState.DONE;
                                         stopSubInteractions();
-                                        MinecraftClient.getInstance().setScreen(null);
+                                        client.setScreen(null);
                                     })
                                     .onFail(reason -> fail("bazaar GUI failed: " + reason))
                                     .start();
@@ -201,7 +255,6 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         stopSubInteractions();
     }
 
-
     @Subscribe
     public void onMacroStopped(MacroStoppedEvent event) {
         resetState();
@@ -210,6 +263,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     private void resetState() {
         acquisitionState = AcquisitionState.IDLE;
         chunkWaitTicks   = 0;
+        cookieHotbarSlot = -1;
         stopSubInteractions();
     }
 
@@ -218,6 +272,5 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         if (buyInteraction    != null) { buyInteraction.stop();    buyInteraction    = null; }
     }
 
-    private void applyFromInventory() {}
-    private void applyFromBackpack()  {}
+    private void applyFromBackpack() {}
 }
