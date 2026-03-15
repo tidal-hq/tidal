@@ -1,5 +1,6 @@
 package net.tidalhq.tidal;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -12,6 +13,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.config.ConfigSerializer;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.impl.*;
@@ -30,12 +32,17 @@ import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.macro.impl.SShapeMelonSDSMacro;
 import net.tidalhq.tidal.macro.impl.SShapeMushroomSDSMacro;
 import net.tidalhq.tidal.notification.Notifier;
+import net.tidalhq.tidal.pathfinder.PathExecutor;
+import net.tidalhq.tidal.pathfinder.WalkPathfinder;
 import net.tidalhq.tidal.state.CompositeGameStateView;
 import net.tidalhq.tidal.state.ServerState;
 import net.tidalhq.tidal.state.TablistState;
+import net.tidalhq.tidal.util.BlockUtil;
 import net.tidalhq.tidal.world.MinecraftWorldAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class Tidal implements ClientModInitializer {
@@ -71,7 +78,7 @@ public class Tidal implements ClientModInitializer {
 		featureManager.register(new PestWarningFeature(featureCtx));
 		featureManager.register(new AutoBoosterCookieFeature(featureCtx));
 		featureManager.setEnabled("pest_warning", true);
-		featureManager.setEnabled("auto_booster_cookie", false);
+		featureManager.setEnabled("auto_booster_cookie", true);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(() ->
 				configSerializer.save(featureManager.getRegistry())));
@@ -100,8 +107,9 @@ public class Tidal implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, c) ->
 				eventBus.post(new ServerDisconnectEvent()));
 
-		ClientTickEvents.END_CLIENT_TICK.register(c ->
-				eventBus.post(new ClientEndTickEvent()));
+		ClientTickEvents.END_CLIENT_TICK.register(c -> {
+			eventBus.post(new ClientEndTickEvent());
+		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(c ->
 				eventBus.post(new ClientStartTickEvent()));

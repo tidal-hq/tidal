@@ -5,26 +5,13 @@ import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.*;
 import net.tidalhq.tidal.failsafe.FailsafeManager;
 import net.tidalhq.tidal.feature.FeatureManager;
+import net.tidalhq.tidal.pathfinder.RotationController;
+import net.tidalhq.tidal.pathfinder.PathExecutor;
 import net.tidalhq.tidal.registry.Registry;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Manages macro selection and the enabled/disabled lifecycle of the active {@link Macro}.
- *
- * MacroManager is responsible for exactly two things:
- *   1. Maintaining which macro is active and registered on the {@link EventBus}.
- *   2. Starting and stopping that macro in response to user commands or external stops.
- *
- * MacroManager does NOT tick FeatureManager or FailsafeManager. Each of those managers
- * subscribes to the EventBus independently and runs on its own cadence. This removes the
- * implicit tick-ordering dependency that previously lived here.
- *
- * Death detection remains here because it requires cross-cutting knowledge: the game message
- * event must be matched and translated into {@link Macro#onDeath()}, which is a macro-lifecycle
- * concern that doesn't belong in a Feature or Failsafe.
- */
 public class MacroManager {
     private static final Pattern DEATH_PATTERN = Pattern.compile("☠ You (?<reason>.+)");
 
@@ -48,11 +35,6 @@ public class MacroManager {
         registry.put(macro);
     }
 
-    /**
-     * Drives the active macro's tick. Features and Failsafes subscribe to ClientEndTickEvent
-     * directly — this handler is only responsible for the macro's own onTick via FeatureManager,
-     * which handles pause/resume logic.
-     */
     @Subscribe
     public void onClientEndTick(ClientEndTickEvent event) {
         if (!enabled || activeMacro == null) return;
@@ -62,19 +44,10 @@ public class MacroManager {
     @Subscribe
     public void onGameMessage(ClientReceiveGameMessageEvent event) {
         if (!enabled || activeMacro == null) return;
-
         Matcher matcher = DEATH_PATTERN.matcher(event.getMessageContent());
-        if (matcher.find()) {
-            activeMacro.onDeath();
-        }
+        if (matcher.find()) activeMacro.onDeath();
     }
 
-    /**
-     * Sets the active {@link Macro} by id. Disables and unregisters the current macro first
-     * if one is running.
-     *
-     * @param id string id of the macro to activate
-     */
     public void setActiveMacro(String id) {
         Macro macro = registry.get(id).orElse(null);
         if (macro == null) return;
@@ -91,11 +64,7 @@ public class MacroManager {
         activeMacroId = id;
         eventBus.register(activeMacro);
     }
-    /**
-     * Enables or disables the currently active macro.
-     *
-     * @param enabled desired state
-     */
+
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled || activeMacro == null) return;
 
@@ -114,6 +83,13 @@ public class MacroManager {
     @Subscribe
     public void onFailsafeTrigger(FailsafeTriggerEvent event) {
         setEnabled(false);
+    }
+
+    public RotationController getActiveRotation() {
+        if (!enabled || activeMacro == null) return null;
+        RotationController executorRotation = PathExecutor.getInstance().getRotation();
+        if (executorRotation != null && executorRotation.hasTarget()) return executorRotation;
+        return activeMacro.ctx.rotation();
     }
 
     public String getActiveMacroId()            { return activeMacroId; }

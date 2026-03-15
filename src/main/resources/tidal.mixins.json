@@ -10,8 +10,9 @@
   },
   "client": [
     "ClientPlayNetworkHandlerMixin",
+    "ClientWorldMixin",
+    "MouseAccessor",
     "MouseMixin",
-    "PlayerListHudMixin",
-    "ClientWorldMixin"
+    "PlayerListHudMixin"
   ]
 }
