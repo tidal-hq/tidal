@@ -16,24 +16,16 @@ public class WalkPathfinder {
     };
 
     private static final int MAX_NODES = 8192;
-    private static final int MAX_FALL  = 5; // raised — jump boost landings can be further down
+    private static final int MAX_FALL  = 5;
 
     private record Node(BlockPos pos, Node parent, double g, double f) {}
 
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns how many blocks high the player can jump right now.
-     * Base = 1. Jump Boost I = 2, II = 3, etc.
-     */
     public static int jumpHeight() {
         if (client.player == null) return 1;
         var effect = client.player.getStatusEffect(StatusEffects.JUMP_BOOST);
         if (effect == null) return 1;
-        return 1 + effect.getAmplifier() + 1; // amplifier 0 = level I = +1 extra block
+        return 1 + effect.getAmplifier() + 1;
     }
-
-    // -------------------------------------------------------------------------
 
     public static List<BlockPos> findPath(BlockPos start, BlockPos goal) {
         if (client.world == null) return Collections.emptyList();
@@ -74,23 +66,18 @@ public class WalkPathfinder {
         return Collections.emptyList();
     }
 
-    // -------------------------------------------------------------------------
-
     private static List<BlockPos> neighbours(BlockPos pos, int maxClimb) {
         List<BlockPos> result = new ArrayList<>(48);
 
         for (int[] d : DIRS) {
-            // Climb up to maxClimb blocks (1 normally, more with Jump Boost)
             for (int rise = 1; rise <= maxClimb; rise++) {
                 BlockPos candidate = pos.add(d[0], rise, d[1]);
-                if (!hasHeadroom(pos, rise)) break; // blocked somewhere in the ascent column
+                if (!hasHeadroom(pos, rise)) break;
                 tryAdd(result, pos, candidate, maxClimb);
             }
 
-            // Same level
             tryAdd(result, pos, pos.add(d[0], 0, d[1]), maxClimb);
 
-            // Fall — scan down until we hit a walkable landing or a solid wall
             for (int fall = 1; fall <= MAX_FALL; fall++) {
                 BlockPos candidate = pos.add(d[0], -fall, d[1]);
                 if (isWalkable(candidate)) {
@@ -104,14 +91,7 @@ public class WalkPathfinder {
         return result;
     }
 
-    /**
-     * Check that the player's body (feet + head) can pass through each block
-     * between the current position and the target rise height.
-     * Prevents the pathfinder from routing through a 1-block ceiling during a
-     * jump-boost climb.
-     */
     private static boolean hasHeadroom(BlockPos feet, int rise) {
-        // For each step up, both the new feet level and head level must be clear
         for (int y = 1; y <= rise; y++) {
             if (!isPassable(feet.up(y)) || !isPassable(feet.up(y + 1))) return false;
         }
@@ -125,15 +105,12 @@ public class WalkPathfinder {
         int dz = to.getZ() - from.getZ();
         int dy = to.getY() - from.getY();
 
-        // Diagonal corner-clip check
         if (Math.abs(dx) == 1 && Math.abs(dz) == 1) {
             if (!isPassable(from.add(dx, dy, 0)) || !isPassable(from.add(0, dy, dz))) return;
         }
 
         list.add(to);
     }
-
-    // -------------------------------------------------------------------------
 
     private static boolean isWalkable(BlockPos feet) {
         if (client.world == null) return false;
@@ -155,8 +132,6 @@ public class WalkPathfinder {
         if (client.world == null) return false;
         return client.world.getBlockState(pos).isSolid();
     }
-
-    // -------------------------------------------------------------------------
 
     private static double heuristic(BlockPos a, BlockPos b) {
         double dx = Math.abs(a.getX() - b.getX());

@@ -11,10 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * Base Feature class
- * holds context, enabled state, and pathfinder session
- */
 public abstract class Feature implements Registerable, ConfigSerializable {
     protected final FeatureContext ctx;
     private boolean enabled;

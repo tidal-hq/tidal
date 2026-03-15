@@ -9,17 +9,20 @@ import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.config.EnumOption;
 import net.tidalhq.tidal.config.IntOption;
 import net.tidalhq.tidal.event.EventBus;
+import net.tidalhq.tidal.event.Subscribe;
 import net.tidalhq.tidal.event.impl.LocationSanctionEvent;
+import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
+import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.notification.Notification;
-import net.tidalhq.tidal.pathfinder.PathExecutor;
-import net.tidalhq.tidal.pathfinder.WalkPathfinder;
 import net.tidalhq.tidal.state.BuffState;
 import net.tidalhq.tidal.state.Location;
-import net.tidalhq.tidal.util.BlockUtil;
+import net.tidalhq.tidal.util.BazaarUtil;
+import net.tidalhq.tidal.util.GuiInteraction;
+import net.tidalhq.tidal.util.NpcInteraction;
 import net.tidalhq.tidal.util.PlayerUtil;
 
 import java.util.List;
@@ -30,9 +33,10 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         IDLE,
         WARPING_TO_HUB,
         WAITING_FOR_CHUNK,
-        PATHFINDING_TO_BAZAAR,
-        AT_BAZAAR,
-        DONE
+        WALKING_TO_BAZAAR,
+        WAITING_FOR_BUY,
+        DONE,
+        FAILED
     }
 
     private final EnumOption<BoosterCookieSource> source = new EnumOption<>(
@@ -55,9 +59,11 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     }
 
     private AcquisitionState acquisitionState = AcquisitionState.IDLE;
-    private boolean          acquisitionFailed = false;
-    private int              chunkWaitTicks    = 0;
-    private static final int CHUNK_WAIT_MAX    = 100;
+    private int              chunkWaitTicks       = 0;
+    private static final int CHUNK_WAIT_MAX       = 100;
+
+    private NpcInteraction bazaarInteraction = null;
+    private GuiInteraction buyInteraction    = null;
 
     public AutoBoosterCookieFeature(FeatureContext ctx) { super(ctx); }
 
@@ -68,20 +74,23 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
 
     @Override
     public void onTick() {
-//        if (ctx.gameState().getCookieBuffState() == BuffState.ACTIVE) {
-//            acquisitionFailed = false;
-//            resetState();
-//            return;
-//        }
+        BuffState cookieState = ctx.gameState().getCookieBuffState();
+        if (cookieState == BuffState.ACTIVE || cookieState == BuffState.UNKNOWN) {
+            if (acquisitionState != AcquisitionState.IDLE) resetState();
+            return;
+        }
 
-        boolean success = acquire();
-        if (!success && acquisitionState == AcquisitionState.IDLE) {
-            if (!acquisitionFailed) {
-                acquisitionFailed = true;
-                ctx.notifier().send(
-                        "[" + getName() + "] could not obtain Booster Cookie from " + source.get().getName(),
-                        Notification.NotificationLevel.WARNING);
-            }
+        if (bazaarInteraction != null) bazaarInteraction.tick();
+        if (buyInteraction    != null) buyInteraction.tick();
+
+        if (acquisitionState == AcquisitionState.FAILED
+                || acquisitionState == AcquisitionState.DONE) return;
+
+        switch (source.get()) {
+            case INVENTORY        -> applyFromInventory();
+            case BACKPACK         -> applyFromBackpack();
+            case BAZAAR_NO_COOKIE,
+                 BAZAAR           -> purchaseFromBazaar();
         }
     }
 
@@ -98,16 +107,14 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
 
     @Override
     public boolean shouldPauseMacro(Macro macro) {
-        boolean midAcquisition = acquisitionState == AcquisitionState.WARPING_TO_HUB
-                || acquisitionState == AcquisitionState.WAITING_FOR_CHUNK
-                || acquisitionState == AcquisitionState.PATHFINDING_TO_BAZAAR
-                || acquisitionState == AcquisitionState.AT_BAZAAR;
-        return midAcquisition || (acquisitionFailed && pauseIfUnavailable.get());
+        if (acquisitionState == AcquisitionState.IDLE || acquisitionState == AcquisitionState.DONE) return false;
+        if (acquisitionState == AcquisitionState.FAILED) return pauseIfUnavailable.get();
+        return true; // mid-acquisition
     }
 
     @Override
     public void onMacroPaused(Macro macro) {
-        if (acquisitionFailed) {
+        if (acquisitionState == AcquisitionState.FAILED) {
             ctx.notifier().danger("[" + getName() + "] macro paused — Booster Cookie unavailable from "
                     + source.get().getName());
         } else {
@@ -116,73 +123,40 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         }
     }
 
-    private boolean acquire() {
-        return switch (source.get()) {
-            case INVENTORY        -> applyFromInventory();
-            case BACKPACK         -> applyFromBackpack();
-            case BAZAAR_NO_COOKIE,
-                 BAZAAR           -> purchaseFromBazaar();
-        };
-    }
-
-    private boolean purchaseFromBazaar() {
-        return switch (acquisitionState) {
+    private void purchaseFromBazaar() {
+        switch (acquisitionState) {
 
             case IDLE -> {
-                if (ctx.gameState().getCurrentLocation() == Location.HUB) {
+                Location current = ctx.gameState().getCurrentLocation();
+                if (current == Location.UNKNOWN) return;
+                if (current == Location.HUB) {
                     beginHubArrival();
                 } else {
                     warpToHub();
                 }
-                yield true;
             }
 
             case WARPING_TO_HUB -> {
                 if (ctx.gameState().getCurrentLocation() == Location.HUB) {
                     beginHubArrival();
                 }
-                yield true;
             }
 
             case WAITING_FOR_CHUNK -> {
                 BlockPos bazaarPos = Npc.BAZAAR_AGENT.getBlockPos();
                 if (ctx.worldAccessor().isChunkLoaded(bazaarPos)) {
-                    startPathfindingToBazaar(bazaarPos);
+                    startBazaarInteraction(bazaarPos);
                 } else if (++chunkWaitTicks >= CHUNK_WAIT_MAX) {
-                    acquisitionFailed = true;
-                    resetState();
+                    fail("bazaar chunk didn't load after " + CHUNK_WAIT_MAX + " ticks");
                 }
-                yield true;
             }
 
-            case PATHFINDING_TO_BAZAAR -> {
-                if (!PathExecutor.getInstance().isRunning()) {
-                    BlockPos bazaarPos = Npc.BAZAAR_AGENT.getBlockPos();
-                    if (isNearBazaar(bazaarPos)) {
-                        acquisitionState = AcquisitionState.AT_BAZAAR;
-                    } else {
-                        startPathfindingToBazaar(bazaarPos);
-                    }
-                }
-                yield true;
-            }
+            case WALKING_TO_BAZAAR, WAITING_FOR_BUY -> {}
 
-            case AT_BAZAAR -> {
-                boolean bought = openBazaarAndBuy();
-                if (bought) {
-                    acquisitionState = AcquisitionState.DONE;
-                } else {
-                    acquisitionFailed = true;
-                    resetState();
-                }
-                yield bought;
-            }
+            case DONE -> {}
 
-            case DONE -> {
-                resetState();
-                yield true;
-            }
-        };
+            case FAILED -> {}
+        }
     }
 
     private void warpToHub() {
@@ -197,52 +171,53 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         chunkWaitTicks   = 0;
     }
 
-    private void startPathfindingToBazaar(BlockPos bazaarPos) {
-        BlockPos target = bazaarPos.north();
-        BlockPos start  = BlockUtil.getPlayerFeetPos();
+    private void startBazaarInteraction(BlockPos bazaarPos) {
+        acquisitionState = AcquisitionState.WALKING_TO_BAZAAR;
 
-        Thread t = new Thread(() -> {
-            var path = WalkPathfinder.findPath(start, target);
-            MinecraftClient.getInstance().execute(() -> {
-                if (path.isEmpty()) {
-                    acquisitionFailed = true;
-                    resetState();
-                    return;
-                }
-                acquisitionState = AcquisitionState.PATHFINDING_TO_BAZAAR;
-                PathExecutor.getInstance().start(path, ctx.rotation(), arrived ->
-                        MinecraftClient.getInstance().execute(
-                                () -> acquisitionState = AcquisitionState.AT_BAZAAR));
-            });
-        }, "tidal-bazaar-path");
-        t.setDaemon(true);
-        t.start();
+        bazaarInteraction = NpcInteraction
+                .create(bazaarPos, ctx.rotation())
+                .onGui(
+                        screen -> screen.getTitle().getString().contains("Bazaar"),
+                        screen -> {
+                            acquisitionState = AcquisitionState.WAITING_FOR_BUY;
+                            buyInteraction   = BazaarUtil.buy("Booster Cookie", 1)
+                                    .onDone(() -> {
+                                        acquisitionState = AcquisitionState.DONE;
+                                        stopSubInteractions();
+                                        MinecraftClient.getInstance().setScreen(null);
+                                    })
+                                    .onFail(reason -> fail("bazaar GUI failed: " + reason))
+                                    .start();
+                        })
+                .onFail(reason -> fail("NPC interaction failed: " + reason))
+                .start();
     }
 
-    private boolean isNearBazaar(BlockPos bazaarPos) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return false;
-        return client.player.getBlockPos().isWithinDistance(bazaarPos, 3.0);
+    private void fail(String reason) {
+        acquisitionState = AcquisitionState.FAILED;
+        ctx.notifier().send(
+                "[" + getName() + "] could not obtain Booster Cookie: " + reason,
+                Notification.NotificationLevel.WARNING);
+        stopSubInteractions();
+    }
+
+
+    @Subscribe
+    public void onMacroStopped(MacroStoppedEvent event) {
+        resetState();
     }
 
     private void resetState() {
         acquisitionState = AcquisitionState.IDLE;
         chunkWaitTicks   = 0;
-        PathExecutor.getInstance().stop();
+        stopSubInteractions();
     }
 
-    private boolean applyFromInventory() {
-        // TODO: scan hotbar/inventory for Booster Cookie item and right-click
-        return false;
+    private void stopSubInteractions() {
+        if (bazaarInteraction != null) { bazaarInteraction.stop(); bazaarInteraction = null; }
+        if (buyInteraction    != null) { buyInteraction.stop();    buyInteraction    = null; }
     }
 
-    private boolean applyFromBackpack() {
-        // TODO: open backpack GUI, locate Booster Cookie, click
-        return false;
-    }
-
-    private boolean openBazaarAndBuy() {
-        // TODO: send /bazaar, wait for GUI, search Booster Cookie, click BUY
-        return false;
-    }
+    private void applyFromInventory() {}
+    private void applyFromBackpack()  {}
 }

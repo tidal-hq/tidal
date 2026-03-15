@@ -13,6 +13,7 @@
     "ClientWorldMixin",
     "MouseAccessor",
     "MouseMixin",
-    "PlayerListHudMixin"
+    "PlayerListHudMixin",
+    "SignEditScreenAccessor"
   ]
 }

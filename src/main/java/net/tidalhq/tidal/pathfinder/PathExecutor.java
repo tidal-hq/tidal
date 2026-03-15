@@ -39,12 +39,6 @@ public class PathExecutor {
         EventBus.getInstance().register(this);
     }
 
-    // -------------------------------------------------------------------------
-
-    /**
-     * Start executing a path using the supplied {@link RotationController} to drive
-     * the player's view. Pass {@code ctx.rotation()} from a macro or feature context.
-     */
     public void start(List<BlockPos> path, RotationController rotation,
                       @Nullable Consumer<BlockPos> onArrival) {
         stop();
@@ -72,10 +66,7 @@ public class PathExecutor {
 
     public boolean isRunning() { return running; }
 
-    /** The rotation controller currently driving this executor, or null if not running. */
     @Nullable public RotationController getRotation() { return running ? rotation : null; }
-
-    // -------------------------------------------------------------------------
 
     @Subscribe
     public void onClientEndTick(ClientEndTickEvent event) {
@@ -124,8 +115,6 @@ public class PathExecutor {
             InputUtil.release(client.options.jumpKey);
         }
     }
-
-    // -------------------------------------------------------------------------
 
     private void advanceIndex(Vec3d pos) {
         while (index < path.size()) {

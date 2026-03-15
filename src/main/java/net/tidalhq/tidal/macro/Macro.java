@@ -3,7 +3,6 @@ package net.tidalhq.tidal.macro;
 import net.tidalhq.tidal.Crop;
 import net.tidalhq.tidal.registry.Registerable;
 import net.tidalhq.tidal.state.Location;
-import net.tidalhq.tidal.pathfinder.PathExecutor;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
@@ -19,6 +18,7 @@ public abstract class Macro implements Registerable {
     private boolean pendingWarp;
     private int     warpCountdown;
     private boolean initialWarpPending;
+    private boolean initialWarpSent;
 
     private boolean wasSneaking;
 
@@ -52,9 +52,9 @@ public abstract class Macro implements Registerable {
 
     public void onDisable() {
         initialWarpPending = false;
+        initialWarpSent    = false;
         setPhase(null);
         InputUtil.reset();
-        PathExecutor.getInstance().stop();
     }
 
     public void onDeath() {
@@ -87,7 +87,9 @@ public abstract class Macro implements Registerable {
             Location target = getTargetLocation();
             if (ctx.gameState().getCurrentLocation().equals(target)) {
                 initialWarpPending = false;
-            } else {
+                initialWarpSent    = false;
+            } else if (!initialWarpSent) {
+                initialWarpSent = true;
                 PlayerUtil.warp(target);
             }
         }

@@ -49,7 +49,6 @@ public class EventBus {
                 try {
                     handler.method.invoke(handler.listener, event);
                 } catch (Exception e) {
-                    Tidal.LOGGER.error("EventBus", e);
                 }
             }
         }

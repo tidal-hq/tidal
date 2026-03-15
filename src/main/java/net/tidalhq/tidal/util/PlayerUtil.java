@@ -15,7 +15,6 @@ public class PlayerUtil {
 
     public static void warp(Location to) {
         if (client.player == null || client.getNetworkHandler() == null) {
-            Tidal.LOGGER.warn("[PlayerUtil] Cannot warp: not connected");
             return;
         }
         client.getNetworkHandler().sendChatCommand("warp " + to.name());
