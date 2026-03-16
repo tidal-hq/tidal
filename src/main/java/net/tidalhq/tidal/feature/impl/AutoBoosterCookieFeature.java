@@ -19,13 +19,10 @@ import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.notification.Notification;
+import net.tidalhq.tidal.requirement.RequirementSet;
 import net.tidalhq.tidal.state.BuffState;
 import net.tidalhq.tidal.state.Location;
-import net.tidalhq.tidal.util.BazaarUtil;
-import net.tidalhq.tidal.util.InventoryUtil;
-import net.tidalhq.tidal.util.GuiInteraction;
-import net.tidalhq.tidal.util.NpcInteraction;
-import net.tidalhq.tidal.util.PlayerUtil;
+import net.tidalhq.tidal.util.*;
 
 import java.util.List;
 
@@ -44,7 +41,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
 
     private final EnumOption<BoosterCookieSource> source = new EnumOption<>(
             "source", "Cookie Source", "Where to obtain the cookie from",
-            BoosterCookieSource.class, BoosterCookieSource.BAZAAR_NO_COOKIE);
+            BoosterCookieSource.class, BoosterCookieSource.BAZAAR_PHYSICAL);
 
     private final IntOption reapplyBeforeExpiry = new IntOption(
             "reapply_before_expiry", "Early Reapply (seconds)",
@@ -95,17 +92,16 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         switch (source.get()) {
             case INVENTORY        -> applyFromInventory();
             case BACKPACK         -> applyFromBackpack();
-            case BAZAAR        -> purchaseFromBazaarBz();
-            case BAZAAR_NO_COOKIE -> purchaseFromBazaar();
+            case BAZAAR_COMMAND        -> purchaseFromBazaarBz();
+            case BAZAAR_PHYSICAL -> purchaseFromBazaar();
         }
     }
 
     @Override
     public boolean onBeforeMacroStart(Macro macro) {
-        if (source.get().requiresCookie()
-                && ctx.gameState().getCookieBuffState() != BuffState.ACTIVE) {
-            ctx.notifier().danger("[" + getName() + "] source '" + source.get().getName()
-                    + "' requires a Booster Cookie but none is active.");
+        RequirementSet reqs = source.get().requirements(ctx.gameState());
+        if (!reqs.allMet()) {
+            fail(reqs.firstFailure());
             return false;
         }
         return true;
@@ -121,11 +117,9 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     @Override
     public void onMacroPaused(Macro macro) {
         if (acquisitionState == AcquisitionState.FAILED) {
-            ctx.notifier().danger("[" + getName() + "] macro paused — Booster Cookie unavailable from "
-                    + source.get().getName());
+            log().danger("macro paused, booster cookie unavailable from " + source.get().getName());
         } else {
-            ctx.notifier().info("[" + getName() + "] macro paused — obtaining Booster Cookie ("
-                    + acquisitionState + ")");
+            log().info("macro paused, using " + source.get().getName());
         }
     }
 
@@ -151,7 +145,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
                         })
                         .onFail(reason -> fail("cookie confirm GUI failed: " + reason))
                         .start();
-                net.tidalhq.tidal.util.InputUtil.press(client.options.useKey);
+                InputUtil.press(client.options.useKey);
             }
         }
     }
@@ -249,9 +243,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
 
     private void fail(String reason) {
         acquisitionState = AcquisitionState.FAILED;
-        ctx.notifier().send(
-                "[" + getName() + "] could not obtain Booster Cookie: " + reason,
-                Notification.NotificationLevel.WARNING);
+        log().warning(reason);
         stopSubInteractions();
     }
 

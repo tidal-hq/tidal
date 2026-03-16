@@ -1,6 +1,9 @@
 package net.tidalhq.tidal.feature.impl;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.DataComponentTypes;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.Npc;
 import net.tidalhq.tidal.Tidal;
@@ -13,25 +16,20 @@ import net.tidalhq.tidal.event.impl.ClientReceiveGameMessageEvent;
 import net.tidalhq.tidal.event.impl.LocationSanctionEvent;
 import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
 import net.tidalhq.tidal.feature.Feature;
+import net.tidalhq.tidal.requirement.RequirementSet;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.notification.Notification;
 import net.tidalhq.tidal.state.BuffState;
 import net.tidalhq.tidal.state.Location;
-import net.tidalhq.tidal.util.AuctionHouseUtil;
-import net.tidalhq.tidal.util.GuiInteraction;
-import net.tidalhq.tidal.util.InventoryUtil;
-import net.tidalhq.tidal.util.NpcInteraction;
-import net.tidalhq.tidal.util.PlayerUtil;
+import net.tidalhq.tidal.util.*;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook {
-
-    private enum Source { INVENTORY, AUCTION_HOUSE_COMMAND, AUCTION_HOUSE_PHYSICAL, BITS_SHOP }
 
     private enum AcquisitionState {
         IDLE,
@@ -45,9 +43,9 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
         FAILED
     }
 
-    private final EnumOption<Source> source = new EnumOption<>(
+    private final EnumOption<GodPotionSource> source = new EnumOption<>(
             "source", "God Pot Source", "Where to obtain the God Potion from",
-            Source.class, Source.AUCTION_HOUSE_COMMAND);
+            GodPotionSource.class, GodPotionSource.AUCTION_HOUSE_COMMAND);
 
     private final BooleanOption pauseIfUnavailable = new BooleanOption(
             "pause_if_unavailable", "Pause if Unavailable",
@@ -68,13 +66,18 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
     private Runnable          onHubArrival     = null;
 
     private int               stuckTicks       = 0;
-    private static final int  STUCK_MAX        = 400; // ~20 seconds
+    private static final int  STUCK_MAX        = 400;
 
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
     public AutoGodPotionFeature(FeatureContext ctx) { super(ctx); }
 
     @Override public String getId()          { return "auto_god_potion"; }
+
+    @Override
+    public RequirementSet requirements() {
+        return source.get().requirements(ctx.gameState());
+    }
     @Override public String getName()        { return "Auto God Potion"; }
     @Override public String getDescription() { return "Automatically re-up God Potion from a selected source."; }
     @Override public Category getCategory()  { return Category.MISC; }
@@ -143,7 +146,7 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
                 })
                 .onFail(reason -> fail("consume GUI failed: " + reason))
                 .start();
-        net.tidalhq.tidal.util.InputUtil.press(client.options.useKey);
+        InputUtil.press(client.options.useKey);
     }
 
     private void startAhCommand() {
@@ -221,17 +224,17 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
                 .start();
     }
 
-    private static boolean isBitsShop(net.minecraft.client.gui.screen.Screen screen) {
+    private static boolean isBitsShop(Screen screen) {
         String title = screen.getTitle().getString();
         return title.contains("Bits Shop") || title.contains("Community Shop");
     }
 
-    private static void disableConfirmIfEnabled(net.minecraft.client.gui.screen.Screen screen) {
-        if (!(screen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen<?> hs)) return;
+    private static void disableConfirmIfEnabled(Screen screen) {
+        if (!(screen instanceof HandledScreen<?> hs)) return;
         for (var slot : hs.getScreenHandler().slots) {
             if (slot.getStack().isEmpty()) continue;
             if (!slot.getStack().getName().getString().contains("Purchase Confirmation")) continue;
-            var lore = slot.getStack().get(net.minecraft.component.DataComponentTypes.LORE);
+            var lore = slot.getStack().get(DataComponentTypes.LORE);
             if (lore != null && lore.lines().stream()
                     .anyMatch(l -> l.getString().contains("Enabled"))) {
                 InventoryUtil.clickSlot(screen, slot.getIndex());
@@ -248,7 +251,6 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
                     stopBuyInteraction();
                 })
                 .onFail(reason -> {
-                    Tidal.LOGGER.warn("[AutoGodPotion] AH attempt {} failed: {}", ahRetries + 1, reason);
                     stopBuyInteraction();
                     if (++ahRetries >= AH_MAX_RETRIES) {
                         fail("AH failed after " + AH_MAX_RETRIES + " attempts");
@@ -321,8 +323,7 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
     private void fail(String reason) {
         acquisitionState = AcquisitionState.FAILED;
         stuckTicks       = 0;
-        ctx.notifier().send("[" + getName() + "] could not obtain God Potion: " + reason,
-                Notification.NotificationLevel.WARNING);
+        log().warning(reason);
         stopSubInteractions();
     }
 
@@ -359,9 +360,14 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
     @Override
     public void onMacroPaused(Macro macro) {
         if (acquisitionState == AcquisitionState.FAILED) {
-            ctx.notifier().danger("[" + getName() + "] macro paused — God Potion unavailable from " + source.get().name());
+            log().danger("macro paused, god potion unavailable from " + source.get().getName());
         } else {
-            ctx.notifier().info("[" + getName() + "] macro paused — obtaining God Potion (" + acquisitionState + ")");
+            log().info("macro paused");
         }
+    }
+
+    @Override
+    public void onMacroResumed(Macro macro) {
+        PlayerUtil.setToolForCrop(macro.getTargetCrop());
     }
 }

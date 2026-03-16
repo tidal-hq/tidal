@@ -4,19 +4,27 @@ import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.config.ConfigSerializable;
+import net.tidalhq.tidal.notification.Notifier;
 import net.tidalhq.tidal.registry.Registerable;
+import net.tidalhq.tidal.requirement.Requireable;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public abstract class Feature implements Registerable, ConfigSerializable {
+public abstract class Feature implements Registerable, ConfigSerializable, Requireable {
     protected final FeatureContext ctx;
     private boolean enabled;
+    private Notifier _log;
 
     protected Feature(FeatureContext ctx) {
         this.ctx = ctx;
+    }
+
+    protected net.tidalhq.tidal.notification.Notifier log() {
+        if (_log == null) _log = ctx.notifier().scoped(getName());
+        return _log;
     }
 
     public void onEnable() {}

@@ -45,7 +45,7 @@ public class PestWarningFeature extends Feature implements MacroLifecycleHook {
 
     private void warn(int count) {
         String msg = count + (count == WARN_THRESHOLDS[WARN_THRESHOLDS.length - 1] ? " pests - MAXIMUM!." : " pests in the garden!");
-        ctx.notifier().send(msg, Notification.NotificationLevel.WARNING);
+        log().warning(msg);
     }
 
     @Override

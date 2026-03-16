@@ -6,6 +6,7 @@ import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
 import net.tidalhq.tidal.macro.Macro;
 import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.registry.Registry;
+import net.tidalhq.tidal.requirement.RequirementSet;
 import net.tidalhq.tidal.util.InputUtil;
 
 import java.util.List;
@@ -40,7 +41,12 @@ public class FeatureManager {
     private boolean setEnabled(Feature feature, boolean enabled) {
         if (feature.isEnabled() == enabled) return enabled;
         feature.setEnabled(enabled);
-        if (enabled) feature.onEnable();
+        if (enabled) {
+            RequirementSet reqs = feature.requirements();
+            if (!reqs.allMet()) {
+                return false;
+            }
+        }
         else feature.onDisable();
         return enabled;
     }

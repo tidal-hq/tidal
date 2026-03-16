@@ -1,16 +1,20 @@
 package net.tidalhq.tidal.macro;
 
 import net.tidalhq.tidal.Crop;
+import net.tidalhq.tidal.notification.Notifier;
 import net.tidalhq.tidal.registry.Registerable;
+import net.tidalhq.tidal.requirement.Requireable;
 import net.tidalhq.tidal.state.Location;
 import net.tidalhq.tidal.util.InputUtil;
 import net.tidalhq.tidal.util.PlayerUtil;
 
-public abstract class Macro implements Registerable {
+public abstract class Macro implements Registerable, Requireable {
     protected final MacroContext ctx;
 
     private static final int WARP_DELAY_MIN = 20;
     private static final int WARP_DELAY_MAX = 60;
+
+    protected final Notifier log;
 
     private MacroPhase currentPhase;
 
@@ -23,6 +27,7 @@ public abstract class Macro implements Registerable {
 
     protected Macro(MacroContext ctx) {
         this.ctx = ctx;
+        this.log = ctx.notifier().scoped(getName());
     }
 
     public MacroPhase getPhase() {

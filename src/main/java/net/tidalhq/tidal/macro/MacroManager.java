@@ -8,6 +8,7 @@ import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.pathfinder.RotationController;
 import net.tidalhq.tidal.pathfinder.PathExecutor;
 import net.tidalhq.tidal.registry.Registry;
+import net.tidalhq.tidal.requirement.RequirementSet;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,6 +70,10 @@ public class MacroManager {
         if (this.enabled == enabled || activeMacro == null) return;
 
         if (enabled) {
+            RequirementSet macroReqs = activeMacro.requirements();
+            if (!macroReqs.allMet()) {
+                return;
+            }
             if (!featureManager.runPreMacroChecks(activeMacro)) return;
             if (!activeMacro.onEnable()) return;
             eventBus.post(new MacroStartedEvent(activeMacro));

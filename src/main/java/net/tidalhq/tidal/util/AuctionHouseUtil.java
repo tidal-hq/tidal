@@ -34,7 +34,7 @@ public class AuctionHouseUtil {
                 .waitFor("Buy now",       s -> isTitled(s, "BIN Auction View"),
                         s -> InventoryUtil.clickSlot(s, SLOT_BUY_NOW))
                 .waitFor("Confirm",       s -> isTitled(s, "Confirm Purchase"),
-                        s -> InventoryUtil.clickSlot(s, "Confirm"));
+                        s -> {InventoryUtil.clickSlot(s, "Confirm"); MinecraftClient.getInstance().setScreen(null);});
     }
 
     public static GuiInteraction buyBin(String itemName) {

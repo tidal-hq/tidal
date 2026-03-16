@@ -7,7 +7,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.Category;
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.config.BooleanOption;
 import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.event.Subscribe;
@@ -32,13 +31,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
     private record RequiredItem(String name, int quantity) {}
 
     private enum State {
-        IDLE,
-        READING_OFFER,
-        BUYING,
-        WAITING_TO_REOPEN,
-        ACCEPTING,
-        REFUSING,
-        DONE
+        IDLE, READING_OFFER, BUYING, WAITING_TO_REOPEN, ACCEPTING, REFUSING, DONE
     }
 
     private final BooleanOption autoBuy = new BooleanOption(
@@ -57,7 +50,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
     private List<RequiredItem> required   = new ArrayList<>();
     private String         visitorName    = "";
     private int            waitTicks      = 0;
-    private static final int REOPEN_WAIT = 40;
+    private static final int REOPEN_WAIT  = 40;
 
     private static final MinecraftClient client = MinecraftClient.getInstance();
 
@@ -65,11 +58,11 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
 
     @Override public String getId()          { return "visitor_macro"; }
     @Override public String getName()        { return "Visitor Macro"; }
-    @Override public String getDescription() { return "Semi-auto visitor handling — click visitor to trigger."; }
+    @Override public String getDescription() { return "Semi-auto visitor handling, click visitor to trigger."; }
     @Override public Category getCategory()  { return Category.MISC; }
 
     @Override public boolean shouldPauseMacro(Macro macro) { return state != State.IDLE && state != State.DONE; }
-    @Override public void onMacroPaused(Macro macro)       { ctx.notifier().info("[" + getName() + "] handling visitor: " + visitorName); }
+    @Override public void onMacroPaused(Macro macro)       { log().info("handling visitor: " + visitorName); }
     @Override public void onMacroResumed(Macro macro)      { net.tidalhq.tidal.util.PlayerUtil.setToolForCrop(macro.getTargetCrop()); }
 
     @Subscribe
@@ -82,10 +75,8 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
         switch (state) {
             case IDLE -> {
                 if (client.currentScreen instanceof HandledScreen<?> hs) {
-                    String title = hs.getTitle().getString();
-                    if (isVisitorScreen(title)) {
-                        visitorName = title;
-                        Tidal.LOGGER.info("[VisitorMacro] detected visitor: {}", visitorName);
+                    if (isVisitorScreen(hs)) {
+                        visitorName = hs.getTitle().getString();
                         transitionTo(State.READING_OFFER);
                     }
                 }
@@ -98,7 +89,6 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 }
 
                 required = parseRequirements(hs);
-                Tidal.LOGGER.info("[VisitorMacro] requirements: {}", required);
 
                 if (required.isEmpty()) {
                     transitionTo(State.ACCEPTING);
@@ -109,7 +99,6 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 if (missing.isEmpty()) {
                     transitionTo(State.ACCEPTING);
                 } else if (autoBuy.get()) {
-                    Tidal.LOGGER.info("[VisitorMacro] missing items, buying: {}", missing);
                     client.setScreen(null);
                     startBuying(missing);
                 } else if (refuseIfCantBuy.get()) {
@@ -119,13 +108,12 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 }
             }
 
-            case BUYING -> {
-            }
+            case BUYING -> {}
 
             case WAITING_TO_REOPEN -> {
                 if (++waitTicks >= REOPEN_WAIT) {
                     waitTicks = 0;
-                    ctx.notifier().info("[" + getName() + "] Items bought! Click " + visitorName + " again to accept.");
+                    log().info("items bought — click " + visitorName + " again to accept");
                     transitionTo(State.IDLE);
                 }
             }
@@ -136,7 +124,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                     return;
                 }
                 InventoryUtil.clickSlot(client.currentScreen, "Accept Offer");
-                ctx.notifier().info("[" + getName() + "] Accepted offer from " + visitorName);
+                log().info("accepted offer from " + visitorName);
                 transitionTo(State.DONE);
             }
 
@@ -146,14 +134,12 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                     return;
                 }
                 InventoryUtil.clickSlot(client.currentScreen, "Refuse Offer");
-                ctx.notifier().info("[" + getName() + "] Refused offer from " + visitorName);
+                log().info("refused offer from " + visitorName);
                 transitionTo(State.DONE);
             }
 
             case DONE -> {
-                if (client.currentScreen == null) {
-                    transitionTo(State.IDLE);
-                }
+                if (client.currentScreen == null) transitionTo(State.IDLE);
             }
         }
     }
@@ -168,7 +154,6 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
         List<RequiredItem> rest = missing.subList(1, missing.size());
 
         transitionTo(State.BUYING);
-
         if (client.player != null) client.player.networkHandler.sendChatCommand("bz");
 
         buyInteraction = BazaarUtil.buy(first.name(), first.quantity())
@@ -182,14 +167,10 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                     }
                 })
                 .onFail(reason -> {
-                    Tidal.LOGGER.warn("[VisitorMacro] buy failed for {}: {}", first.name(), reason);
                     buyInteraction = null;
-                    if (refuseIfCantBuy.get()) {
-                        ctx.notifier().danger("[" + getName() + "] Couldn't buy " + first.name() + " — refusing offer not yet auto-supported after buy fail");
-                        transitionTo(State.IDLE);
-                    } else {
-                        transitionTo(State.IDLE);
-                    }
+                    log().warning("couldn't buy " + first.name() + ": " + reason);
+                    if (refuseIfCantBuy.get()) transitionTo(State.REFUSING);
+                    else transitionTo(State.IDLE);
                 })
                 .start();
     }
@@ -207,27 +188,19 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
             boolean inRequiredSection = false;
             for (Text line : lore.lines()) {
                 String text = line.getString().trim();
-
-                if (text.contains("Items Required:")) {
-                    inRequiredSection = true;
-                    continue;
-                }
-
+                if (text.contains("Items Required:")) { inRequiredSection = true; continue; }
                 if (inRequiredSection) {
                     if (text.isEmpty() || text.contains("Rewards:") || text.contains("Missing")) break;
-
                     Matcher m = ITEM_PATTERN.matcher(text);
                     if (m.matches()) {
                         String name = m.group(1).trim();
                         int qty = Integer.parseInt(m.group(2).replace(",", ""));
                         items.add(new RequiredItem(name, qty));
-                        Tidal.LOGGER.info("[VisitorMacro] parsed requirement: {} x{}", name, qty);
                     }
                 }
             }
             break;
         }
-
         return items;
     }
 
@@ -235,10 +208,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
         List<RequiredItem> missing = new ArrayList<>();
         for (RequiredItem req : required) {
             int have = countInInventory(req.name());
-            if (have < req.quantity()) {
-                missing.add(new RequiredItem(req.name(), req.quantity() - have));
-                Tidal.LOGGER.info("[VisitorMacro] missing {} x{} (have {})", req.name(), req.quantity() - have, have);
-            }
+            if (have < req.quantity()) missing.add(new RequiredItem(req.name(), req.quantity() - have));
         }
         return missing;
     }
@@ -249,26 +219,24 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
         int total = 0;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = client.player.getInventory().getStack(i);
-            if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(lower)) {
+            if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(lower))
                 total += stack.getCount();
-            }
         }
         return total;
     }
 
-    private static boolean isVisitorScreen(String title) {
-        return !title.isBlank()
-                && !title.contains("Bazaar")
-                && !title.contains("Auction")
-                && !title.contains("Chest")
-                && !title.contains("Inventory")
-                && !title.contains("Desk")
-                && !title.contains("Shop")
-                && !title.contains("Menu");
+    private static boolean isVisitorScreen(HandledScreen<?> screen) {
+        boolean hasAccept = false;
+        boolean hasRefuse = false;
+        for (var slot : screen.getScreenHandler().slots) {
+            if (slot.getStack().isEmpty()) continue;
+            String name = slot.getStack().getName().getString();
+            if (name.contains("Accept Offer")) hasAccept = true;
+            if (name.contains("Refuse Offer")) hasRefuse = true;
+            if (hasAccept && hasRefuse) return true;
+        }
+        return false;
     }
 
-    private void transitionTo(State next) {
-        Tidal.LOGGER.info("[VisitorMacro] {} -> {}", state, next);
-        state = next;
-    }
+    private void transitionTo(State next) { state = next; }
 }

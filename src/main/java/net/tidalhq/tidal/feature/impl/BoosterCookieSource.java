@@ -1,42 +1,47 @@
 package net.tidalhq.tidal.feature.impl;
 
+import net.tidalhq.tidal.requirement.Requirement;
+import net.tidalhq.tidal.requirement.RequirementSet;
+import net.tidalhq.tidal.state.BuffState;
+
 public enum BoosterCookieSource {
+
     BACKPACK(
             "Backpack",
-            "Use a Booster Cookie stored in a backpack",
-            false
+            "Use a Booster Cookie stored in a backpack"
     ),
-
     INVENTORY(
             "Inventory",
-            "Use a Booster Cookie already in your inventory",
-            false
+            "Use a Booster Cookie already in your inventory"
     ),
-
-    BAZAAR_NO_COOKIE(
+    BAZAAR_PHYSICAL(
             "Bazaar (physical)",
-            "Travel to bazaar and purchase booster cookie",
-            false
+            "Travel to bazaar NPC and purchase a Booster Cookie"
     ),
-
-    BAZAAR(
+    BAZAAR_COMMAND(
             "Bazaar (command)",
-            "Use /bz and purchase a booster cookie (can only be done before current expires)",
-            true
-    )
-    ;
+            "Use /bz to purchase a Booster Cookie, requires an active cookie to access the AH/Bazaar"
+    );
 
     private final String name;
     private final String description;
-    private final boolean requiresCookie;
 
-    BoosterCookieSource(String name, String description, boolean requiresCookie) {
-        this.name = name;
+    BoosterCookieSource(String name, String description) {
+        this.name        = name;
         this.description = description;
-        this.requiresCookie = requiresCookie;
     }
 
-    public String getName()  { return name; }
-    public String getDescription()  { return description; }
-    public boolean requiresCookie() { return requiresCookie; }
+    public String getName()        { return name; }
+    public String getDescription() { return description; }
+
+
+    public RequirementSet requirements(net.tidalhq.tidal.state.CompositeGameStateView gameState) {
+        return switch (this) {
+            case INVENTORY, BACKPACK, BAZAAR_PHYSICAL -> RequirementSet.EMPTY;
+            case BAZAAR_COMMAND -> RequirementSet.of(
+                    Requirement.of("Active Booster Cookie (needed to access /bz)",
+                            () -> gameState.getCookieBuffState() == BuffState.ACTIVE)
+            );
+        };
+    }
 }
