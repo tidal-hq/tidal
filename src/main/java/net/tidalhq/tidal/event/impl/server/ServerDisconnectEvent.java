@@ -1,6 +1,5 @@
-package net.tidalhq.tidal.event.impl;
+package net.tidalhq.tidal.event.impl.server;
 
-import net.minecraft.client.network.ServerInfo;
 import net.tidalhq.tidal.event.Event;
 
 public class ServerDisconnectEvent implements Event {

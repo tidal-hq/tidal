@@ -2,7 +2,11 @@ package net.tidalhq.tidal.macro;
 
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.*;
+import net.tidalhq.tidal.event.impl.client.ClientEndTickEvent;
+import net.tidalhq.tidal.event.impl.client.ClientReceiveGameMessageEvent;
+import net.tidalhq.tidal.event.impl.failsafe.FailsafeTriggerEvent;
+import net.tidalhq.tidal.event.impl.macro.MacroStartedEvent;
+import net.tidalhq.tidal.event.impl.macro.MacroStoppedEvent;
 import net.tidalhq.tidal.failsafe.FailsafeManager;
 import net.tidalhq.tidal.feature.FeatureManager;
 import net.tidalhq.tidal.pathfinder.RotationController;

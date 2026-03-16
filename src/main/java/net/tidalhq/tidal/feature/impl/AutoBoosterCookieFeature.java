@@ -1,24 +1,21 @@
 package net.tidalhq.tidal.feature.impl;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.Npc;
-import net.tidalhq.tidal.Tidal;
 import net.tidalhq.tidal.config.BooleanOption;
 import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.config.EnumOption;
 import net.tidalhq.tidal.config.IntOption;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.LocationSanctionEvent;
-import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
+import net.tidalhq.tidal.event.impl.client.LocationSanctionEvent;
+import net.tidalhq.tidal.event.impl.macro.MacroStoppedEvent;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
 import net.tidalhq.tidal.macro.Macro;
-import net.tidalhq.tidal.notification.Notification;
 import net.tidalhq.tidal.requirement.RequirementSet;
 import net.tidalhq.tidal.state.BuffState;
 import net.tidalhq.tidal.state.Location;

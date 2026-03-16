@@ -4,7 +4,9 @@ import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.*;
+import net.tidalhq.tidal.event.impl.server.PlayerListFooterSetEvent;
+import net.tidalhq.tidal.event.impl.server.PlayerListHeaderSetEvent;
+import net.tidalhq.tidal.event.impl.server.PlayerListUpdateEvent;
 import net.tidalhq.tidal.util.TablistUtil;
 
 import java.util.*;

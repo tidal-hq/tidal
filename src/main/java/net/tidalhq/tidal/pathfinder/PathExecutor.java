@@ -6,7 +6,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
+import net.tidalhq.tidal.event.impl.client.ClientEndTickEvent;
 import net.tidalhq.tidal.util.InputUtil;
 import org.jetbrains.annotations.Nullable;
 

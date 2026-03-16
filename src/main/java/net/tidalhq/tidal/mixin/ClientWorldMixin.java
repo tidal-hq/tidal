@@ -1,11 +1,9 @@
 package net.tidalhq.tidal.mixin;
 
-import net.minecraft.block.BlockState;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleEffect;
-import net.minecraft.util.math.BlockPos;
 import net.tidalhq.tidal.event.EventBus;
-import net.tidalhq.tidal.event.impl.ParticleSpawnedEvent;
+import net.tidalhq.tidal.event.impl.server.ParticleSpawnedEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

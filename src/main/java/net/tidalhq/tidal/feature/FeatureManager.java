@@ -2,9 +2,8 @@ package net.tidalhq.tidal.feature;
 
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.MacroStoppedEvent;
+import net.tidalhq.tidal.event.impl.macro.MacroStoppedEvent;
 import net.tidalhq.tidal.macro.Macro;
-import net.tidalhq.tidal.macro.MacroManager;
 import net.tidalhq.tidal.registry.Registry;
 import net.tidalhq.tidal.requirement.RequirementSet;
 import net.tidalhq.tidal.util.InputUtil;

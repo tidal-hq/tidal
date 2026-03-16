@@ -1,13 +1,13 @@
-package net.tidalhq.tidal.event.impl;
+package net.tidalhq.tidal.event.impl.macro;
 
 import net.tidalhq.tidal.event.Event;
 import net.tidalhq.tidal.macro.Macro;
 
-public class MacroStoppedEvent implements Event {
+public class MacroStartedEvent implements Event {
 
     private final Macro macro;
 
-    public MacroStoppedEvent(Macro macro) {
+    public MacroStartedEvent(Macro macro) {
         this.macro = macro;
     }
 

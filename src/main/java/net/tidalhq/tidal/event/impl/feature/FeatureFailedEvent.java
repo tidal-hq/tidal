@@ -1,4 +1,4 @@
-package net.tidalhq.tidal.event.impl;
+package net.tidalhq.tidal.event.impl.feature;
 
 import net.tidalhq.tidal.event.Event;
 import net.tidalhq.tidal.feature.Feature;

@@ -1,14 +1,12 @@
 package net.tidalhq.tidal.feature.impl;
 
-import net.tidalhq.tidal.registry.Registerable;
 import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.PestSpawnedEvent;
+import net.tidalhq.tidal.event.impl.client.PestSpawnedEvent;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;
 import net.tidalhq.tidal.macro.Macro;
-import net.tidalhq.tidal.notification.Notification;
 
 public class PestWarningFeature extends Feature implements MacroLifecycleHook {
 

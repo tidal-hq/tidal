@@ -10,7 +10,7 @@ import net.tidalhq.tidal.Category;
 import net.tidalhq.tidal.config.BooleanOption;
 import net.tidalhq.tidal.config.ConfigOption;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.ClientEndTickEvent;
+import net.tidalhq.tidal.event.impl.client.ClientEndTickEvent;
 import net.tidalhq.tidal.feature.Feature;
 import net.tidalhq.tidal.feature.FeatureContext;
 import net.tidalhq.tidal.feature.MacroLifecycleHook;

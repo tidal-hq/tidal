@@ -2,8 +2,8 @@ package net.tidalhq.tidal.failsafe.impl;
 
 import net.tidalhq.tidal.event.EventBus;
 import net.tidalhq.tidal.event.Subscribe;
-import net.tidalhq.tidal.event.impl.FailsafeTriggerEvent;
-import net.tidalhq.tidal.event.impl.ServerDisconnectEvent;
+import net.tidalhq.tidal.event.impl.failsafe.FailsafeTriggerEvent;
+import net.tidalhq.tidal.event.impl.server.ServerDisconnectEvent;
 import net.tidalhq.tidal.failsafe.Failsafe;
 import net.tidalhq.tidal.failsafe.FailsafeContext;
 

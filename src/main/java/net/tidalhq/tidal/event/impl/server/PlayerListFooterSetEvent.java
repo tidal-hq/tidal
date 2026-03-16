@@ -1,4 +1,4 @@
-package net.tidalhq.tidal.event.impl;
+package net.tidalhq.tidal.event.impl.server;
 
 import net.tidalhq.tidal.event.Event;
 
