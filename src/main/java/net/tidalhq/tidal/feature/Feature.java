@@ -7,6 +7,7 @@ import net.tidalhq.tidal.config.ConfigSerializable;
 import net.tidalhq.tidal.notification.Notifier;
 import net.tidalhq.tidal.registry.Registerable;
 import net.tidalhq.tidal.requirement.Requireable;
+import net.tidalhq.tidal.state.InputState;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +27,9 @@ public abstract class Feature implements Registerable, ConfigSerializable, Requi
         if (_log == null) _log = ctx.notifier().scoped(getName());
         return _log;
     }
+
+    protected void lockInput()   { InputState.lock(getId()); }
+    protected void unlockInput() { InputState.unlock(getId()); }
 
     public void onEnable() {}
 

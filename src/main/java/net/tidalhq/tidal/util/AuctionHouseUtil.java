@@ -20,21 +20,21 @@ public class AuctionHouseUtil {
     public static GuiInteraction buyBin(String itemName, Set<Integer> soldSlots) {
         return GuiInteraction.begin()
                 .waitFor("AH lobby",      s -> isTitled(s, "Auction House") && !isResultsScreen(s) && !isTitled(s, "Browser"),
-                        s -> InventoryUtil.clickSlot(s, "Auctions Browser"))
+                        s -> InventoryUtil.clickSlot(s, "Auctions Browser"),3, 7)
                 .waitFor("AH browser",    s -> isTitled(s, "Auctions Browser"),
-                        s -> InventoryUtil.clickSlot(s, SLOT_SEARCH))
+                        s -> InventoryUtil.clickSlot(s, SLOT_SEARCH),3, 6)
                 .waitFor("Search sign",   s -> s instanceof AbstractSignEditScreen,
-                        s -> SignInput.setAndConfirm(itemName))
+                        s -> SignInput.setAndConfirm(itemName),8, 18)
                 .waitFor("Sort lowest",   s -> isResultsScreen(s) && isSortedLowestPrice(s),
-                        s -> InventoryUtil.clickSlot(s, SLOT_SORT))
+                        s -> InventoryUtil.clickSlot(s, SLOT_SORT),3, 7)
                 .waitFor("BIN filter",    s -> isResultsScreen(s) && isBinOnly(s),
-                        s -> InventoryUtil.clickSlot(s, SLOT_BIN_FILTER))
+                        s -> InventoryUtil.clickSlot(s, SLOT_BIN_FILTER),3, 6)
                 .waitFor("Select item",   s -> isResultsScreen(s) && findBuyableSlot(s, itemName, soldSlots) != -1,
-                        s -> InventoryUtil.clickSlot(s, findBuyableSlot(s, itemName, soldSlots)))
+                        s -> InventoryUtil.clickSlot(s, findBuyableSlot(s, itemName, soldSlots)),5, 10)
                 .waitFor("Buy now",       s -> isTitled(s, "BIN Auction View"),
-                        s -> InventoryUtil.clickSlot(s, SLOT_BUY_NOW))
+                        s -> InventoryUtil.clickSlot(s, SLOT_BUY_NOW),4, 8)
                 .waitFor("Confirm",       s -> isTitled(s, "Confirm Purchase"),
-                        s -> {InventoryUtil.clickSlot(s, "Confirm"); MinecraftClient.getInstance().setScreen(null);});
+                        s -> { InventoryUtil.clickSlot(s, "Confirm"); MinecraftClient.getInstance().setScreen(null); },2, 4);
     }
 
     public static GuiInteraction buyBin(String itemName) {

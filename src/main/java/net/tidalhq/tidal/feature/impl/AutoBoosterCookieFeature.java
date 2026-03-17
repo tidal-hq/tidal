@@ -123,6 +123,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     private void applyFromInventory() {
         switch (acquisitionState) {
             case IDLE -> {
+                lockInput();
                 int slot = InventoryUtil.findInInventory("Booster Cookie");
                 if (slot == -1) { fail("no Booster Cookie found in inventory"); return; }
                 cookieHotbarSlot = InventoryUtil.moveToHotbar(slot);
@@ -154,6 +155,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
             case IDLE -> {
                 Location current = ctx.gameState().getCurrentLocation();
                 if (current == Location.UNKNOWN) return;
+                lockInput();
                 if (current == Location.HUB) {
                     beginHubArrival();
                 } else {
@@ -184,6 +186,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
     private void purchaseFromBazaarBz() {
         switch (acquisitionState) {
             case IDLE -> {
+                lockInput();
                 acquisitionState = AcquisitionState.WAITING_FOR_BUY;
                 if (client.player != null) {
                     client.player.networkHandler.sendChatCommand("bz");
@@ -195,7 +198,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
                         .onDone(() -> {
                             acquisitionState = AcquisitionState.DONE;
                             stopSubInteractions();
-                            client.setScreen(null);
+                            unlockInput();
                         })
                         .onFail(reason -> fail("bazaar GUI failed: " + reason))
                         .start();
@@ -229,7 +232,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
                                     .onDone(() -> {
                                         acquisitionState = AcquisitionState.DONE;
                                         stopSubInteractions();
-                                        client.setScreen(null);
+                                        unlockInput();
                                     })
                                     .onFail(reason -> fail("bazaar GUI failed: " + reason))
                                     .start();
@@ -242,6 +245,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         acquisitionState = AcquisitionState.FAILED;
         log().warning(reason);
         stopSubInteractions();
+        unlockInput();
     }
 
     @Subscribe
@@ -254,6 +258,7 @@ public class AutoBoosterCookieFeature extends Feature implements MacroLifecycleH
         chunkWaitTicks   = 0;
         cookieHotbarSlot = -1;
         stopSubInteractions();
+        unlockInput();
     }
 
     private void stopSubInteractions() {

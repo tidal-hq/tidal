@@ -102,7 +102,10 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
         }
 
         switch (acquisitionState) {
-            case IDLE               -> transitionTo(AcquisitionState.CHECKING_INVENTORY);
+            case IDLE               -> {
+                lockInput();
+                transitionTo(AcquisitionState.CHECKING_INVENTORY);
+            }
             case CHECKING_INVENTORY -> checkInventoryFirst();
             case WARPING_TO_HUB     -> tickWarpingToHub();
             case WALKING_TO_NPC     -> {}
@@ -141,6 +144,7 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
                 .onDone(() -> {
                     transitionTo(AcquisitionState.DONE);
                     stopSubInteractions();
+                    unlockInput();
                 })
                 .onFail(reason -> fail("consume GUI failed: " + reason))
                 .start();
@@ -336,6 +340,7 @@ public class AutoGodPotionFeature extends Feature implements MacroLifecycleHook 
         onHubArrival     = null;
         soldSlots.clear();
         stopSubInteractions();
+        unlockInput();
     }
 
     private void stopBuyInteraction() {

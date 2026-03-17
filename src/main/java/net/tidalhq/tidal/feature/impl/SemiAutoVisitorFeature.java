@@ -77,6 +77,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 if (client.currentScreen instanceof HandledScreen<?> hs) {
                     if (isVisitorScreen(hs)) {
                         visitorName = hs.getTitle().getString();
+                        lockInput();
                         transitionTo(State.READING_OFFER);
                     }
                 }
@@ -84,6 +85,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
 
             case READING_OFFER -> {
                 if (!(client.currentScreen instanceof HandledScreen<?> hs)) {
+                    unlockInput();
                     transitionTo(State.IDLE);
                     return;
                 }
@@ -104,6 +106,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 } else if (refuseIfCantBuy.get()) {
                     transitionTo(State.REFUSING);
                 } else {
+                    unlockInput();
                     transitionTo(State.IDLE);
                 }
             }
@@ -114,6 +117,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 if (++waitTicks >= REOPEN_WAIT) {
                     waitTicks = 0;
                     log().info("items bought — click " + visitorName + " again to accept");
+                    unlockInput();
                     transitionTo(State.IDLE);
                 }
             }
@@ -125,6 +129,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 }
                 InventoryUtil.clickSlot(client.currentScreen, "Accept Offer");
                 log().info("accepted offer from " + visitorName);
+                unlockInput();
                 transitionTo(State.DONE);
             }
 
@@ -135,6 +140,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                 }
                 InventoryUtil.clickSlot(client.currentScreen, "Refuse Offer");
                 log().info("refused offer from " + visitorName);
+                unlockInput();
                 transitionTo(State.DONE);
             }
 
@@ -150,7 +156,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
             return;
         }
 
-        RequiredItem first = missing.get(0);
+        RequiredItem first = missing.getFirst();
         List<RequiredItem> rest = missing.subList(1, missing.size());
 
         transitionTo(State.BUYING);
@@ -170,7 +176,7 @@ public class SemiAutoVisitorFeature extends Feature implements MacroLifecycleHoo
                     buyInteraction = null;
                     log().warning("couldn't buy " + first.name() + ": " + reason);
                     if (refuseIfCantBuy.get()) transitionTo(State.REFUSING);
-                    else transitionTo(State.IDLE);
+                    else {unlockInput(); transitionTo(State.IDLE);}
                 })
                 .start();
     }
